@@ -1,0 +1,39 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-19.1.2_20250312\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=c:\\Users\\ijssl\\Programming Projects\\Beacon-DIY\\satelites\\CYD\\CYD-Satelite\\build"
+  ],
+  "idf.currentSetup": "C:\\esp\\v5.5.2\\esp-idf",
+  "idf.openOcdConfigs": [
+    "interface/ftdi/esp_ftdi.cfg",
+    "target/esp32.cfg"
+  ],
+  "idf.portWin": "detect",
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32"
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/.vexp/daemon.pid": true,
+    "**/.vexp/daemon.sock": true,
+    "**/.vexp/daemon.pipe": true,
+    "**/.vexp/daemon.log": true,
+    "**/.vexp/vexp.log": true,
+    "**/.vexp/healthy": true,
+    "**/.vexp/mcp.port": true,
+    "**/.vexp/mcp.token": true,
+    "**/.vexp/index.db": true,
+    "**/.vexp/index.db-wal": true,
+    "**/.vexp/index.db-shm": true,
+    "**/.vexp/parent_workspace.json": true,
+    "**/.vexp/.gitignore": true,
+    "**/.vexp/.gitattributes": true
+  }
+}
