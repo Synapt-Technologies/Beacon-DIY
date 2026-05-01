@@ -1,12 +1,22 @@
+#include "sdkconfig.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "led_strip.h"
-#include "esp_log.h"
+#include "freertos/semphr.h"
 #include "esp_err.h"
+#include "esp_log.h"
 
-#define LED_STRIP_GPIO  22
-#define LED_STRIP_LED_NUMBER 28
+#include "driver/gpio.h"
+#include "led_strip.h"
+
+#define FIX_LED_R_GPIO 4
+#define FIX_LED_G_GPIO 16
+#define FIX_LED_B_GPIO 17
+
+#define ADD_LED_STRIP_GPIO  22
+#define ADD_LED_STRIP_LED_NUMBER 21
 
 static const char *TAG = "example";
 
@@ -14,8 +24,8 @@ led_strip_handle_t configure_led(void)
 {
     // LED strip general initialization, according to your led board design
     led_strip_config_t strip_config = {
-        .strip_gpio_num = LED_STRIP_GPIO,   // The GPIO that connected to the LED strip's data line
-        .max_leds = LED_STRIP_LED_NUMBER,    // The number of LEDs in the strip,
+        .strip_gpio_num = ADD_LED_STRIP_GPIO,   // The GPIO that connected to the LED strip's data line
+        .max_leds = ADD_LED_STRIP_LED_NUMBER,    // The number of LEDs in the strip,
         .led_model = LED_MODEL_WS2812,      // LED strip model
         .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB, // Pixel format of your LED strip
         .flags.invert_out = false,          // whether to invert the output signal
@@ -35,13 +45,14 @@ led_strip_handle_t configure_led(void)
     return led_strip;
 }
 
-void app_main(void)
-{
-    led_strip_handle_t led_strip = configure_led();
+
+
+void add_led_cycle(void*arg) {
+led_strip_handle_t led_strip = configure_led();
 
     ESP_LOGI(TAG, "Start blinking LED strip");
     while (1) {
-        for (int i = 0; i < LED_STRIP_LED_NUMBER; i++) {
+        for (int i = 0; i < ADD_LED_STRIP_LED_NUMBER; i++) {
             ESP_ERROR_CHECK(led_strip_set_pixel(led_strip, i, 255, 0, 0));
         }
         ESP_ERROR_CHECK(led_strip_refresh(led_strip));
@@ -55,7 +66,7 @@ void app_main(void)
 
         vTaskDelay(pdMS_TO_TICKS(500));
         
-        for (int i = 0; i < LED_STRIP_LED_NUMBER; i++) {
+        for (int i = 0; i < ADD_LED_STRIP_LED_NUMBER; i++) {
             ESP_ERROR_CHECK(led_strip_set_pixel(led_strip, i, 0, 255, 0));
         }
         ESP_ERROR_CHECK(led_strip_refresh(led_strip));
@@ -68,7 +79,7 @@ void app_main(void)
 
         vTaskDelay(pdMS_TO_TICKS(500));
         
-        for (int i = 0; i < LED_STRIP_LED_NUMBER; i++) {
+        for (int i = 0; i < ADD_LED_STRIP_LED_NUMBER; i++) {
             ESP_ERROR_CHECK(led_strip_set_pixel(led_strip, i, 0, 0, 255));
         }
         ESP_ERROR_CHECK(led_strip_refresh(led_strip));
@@ -82,4 +93,39 @@ void app_main(void)
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }
+}
+
+void fix_led_cycle(void*arg) {
+
+    gpio_set_direction(FIX_LED_R_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(FIX_LED_G_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(FIX_LED_B_GPIO, GPIO_MODE_OUTPUT);
+    while(1) {
+
+        gpio_set_level(FIX_LED_R_GPIO, 0);
+        gpio_set_level(FIX_LED_G_GPIO, 1);
+        gpio_set_level(FIX_LED_B_GPIO, 1);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        gpio_set_level(FIX_LED_R_GPIO, 1);
+        gpio_set_level(FIX_LED_G_GPIO, 0);
+        gpio_set_level(FIX_LED_B_GPIO, 1);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        gpio_set_level(FIX_LED_R_GPIO, 1);
+        gpio_set_level(FIX_LED_G_GPIO, 1);
+        gpio_set_level(FIX_LED_B_GPIO, 0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+
+void app_main(void)
+{
+    //Allow other core to finish initialization
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    xTaskCreate(add_led_cycle, "add_led_cycle", 4096, NULL, 5, NULL);
+    xTaskCreate(fix_led_cycle, "fix_led_cycle", 4096, NULL, 5, NULL);
+    
 }
