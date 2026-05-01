@@ -1,4 +1,5 @@
-idf_component_register(SRCS "main.cpp"
+idf_component_register(SRCS "main.c"
                     INCLUDE_DIRS "."
-                    REQUIRES led_strip)
-target_compile_options(${COMPONENT_LIB} PRIVATE -std=gnu++11)
+                    REQUIRES led_strip
+                    REQUIRES mqtt
+                )
