@@ -5,7 +5,7 @@
 #include "esp_log.h"
 #include "esp_err.h"
 
-#define LED_STRIP_GPIO  2
+#define LED_STRIP_GPIO  22
 #define LED_STRIP_LED_NUMBER 1
 
 static const char *TAG = "example";
