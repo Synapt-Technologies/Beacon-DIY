@@ -48,7 +48,7 @@ led_strip_handle_t configure_led(void)
 
 
 void add_led_cycle(void*arg) {
-led_strip_handle_t led_strip = configure_led();
+    led_strip_handle_t led_strip = configure_led();
 
     ESP_LOGI(TAG, "Start blinking LED strip");
     while (1) {
