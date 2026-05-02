@@ -68,7 +68,12 @@ private:
         if (!pattern) return; // No pattern for this action (e.g. CLEAR)
 
         TallyState state = pattern->pattern[step % pattern->patternLen];
-        this->applyState(state);
+        if (state == TallyState::NONE) {
+            this->applyState(this->_state);
+        }
+        else {
+            this->applyState(state);
+        }
     }
 
     struct AlertPatternConfig {
