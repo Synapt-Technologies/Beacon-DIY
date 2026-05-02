@@ -44,36 +44,42 @@ protected:
 
 
     struct AlertTaskArg {
+        IConsumer* self;
         DeviceAlertAction action;
         DeviceAlertTarget target;
         uint32_t timeout;
     };
 
-    void alertTask(void* arg) {
-        auto* state = static_cast<AlertTaskArg*>(arg);
-        
-        const bool infinite_timeout = (state->timeout == 0);
-        TickType_t parsed_timeout = pdMS_TO_TICKS(state->timeout);
+    static void alertTask(void* arg) {
+        auto* a = static_cast<AlertTaskArg*>(arg);
+        IConsumer* self = a->self;
+
+        const bool infinite_timeout = (a->timeout == 0);
+        TickType_t parsed_timeout = pdMS_TO_TICKS(a->timeout);
         TickType_t start_time = xTaskGetTickCount();
 
         uint8_t step = 0;
 
-        uint32_t step_length = this->getAlertStepLength(state->action); // ms
-        uint8_t step_count = this->getAlertStepCount(state->action); 
+        uint32_t step_length = self->getAlertStepLength(a->action);
+        uint8_t step_count = self->getAlertStepCount(a->action);
 
         while (xTaskGetTickCount() < start_time + parsed_timeout || infinite_timeout) {
-            this->setAlertStep(state->action, state->target, step++);
+            self->setAlertStep(a->action, a->target, step++);
 
             if (step >= step_count) step = 0;
 
-            TickType_t parsed_delay = 
+            TickType_t parsed_delay =
                 (xTaskGetTickCount() + step_length > start_time + parsed_timeout) && !infinite_timeout ?
                 (start_time + parsed_timeout - xTaskGetTickCount()) :
                 step_length;
-            vTaskDelay(parsed_delay);
+
+            if (ulTaskNotifyTake(pdTRUE, parsed_delay)) break;
         }
 
-        this->applyState(this->_state);
+        self->applyState(self->_state);
+        self->_alertTask = nullptr;
+        delete a;
+        vTaskDelete(nullptr);
     }
 
     virtual uint32_t getAlertStepLength(DeviceAlertAction action) = 0;
@@ -81,13 +87,14 @@ protected:
     virtual void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) = 0;
 
     void startAlertTask(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
-        
-        auto* arg       = new AlertTaskArg;
-        arg->action     = action;
-        arg->target     = target;
-        arg->timeout    = timeout;
 
-        xTaskCreate(alertTask, "led_pat", 2048, arg, 18, &h);
+        auto* arg    = new AlertTaskArg;
+        arg->self    = this;
+        arg->action  = action;
+        arg->target  = target;
+        arg->timeout = timeout;
+
+        xTaskCreate(alertTask, "led_pat", 2048, arg, 18, &_alertTask);
     };
 
     void stopAlertTask(DeviceAlertTarget target) {
@@ -95,10 +102,6 @@ protected:
         if (!_alertTask) return;
 
         xTaskNotifyGive(_alertTask);
-        vTaskDelay(pdMS_TO_TICKS(20));
-        _alertTask = nullptr;
-        this->applyState(this->_state);
-
     };
 
 
