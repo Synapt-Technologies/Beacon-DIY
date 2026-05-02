@@ -9,6 +9,7 @@
 #include "led_strip.h"
 
 #include "config.h"
+#include "led_layout.h"
 #include "led_controller.h"
 #include "wifi_manager.h"
 #include "mqtt_manager.h"
@@ -44,6 +45,10 @@ static led_strip_handle_t createLedStrip()
 
 // ── Composition root ──────────────────────────────────────────────────────────
 
+// ── LED layout (static to avoid stack overflow) ────────────────────────────────
+
+static LedLayout g_layout;
+
 extern "C" void app_main()
 {
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -62,10 +67,13 @@ extern "C" void app_main()
     auto* config = new NvsConfig();
     config->load();
 
+    g_layout.parse(config->get().led_layout);
+
     led_strip_handle_t strip = createLedStrip();
     auto* leds = new CompositeLedController(strip,
                                             FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO,
                                             ADD_LED_STRIP_LED_NUMBER,
+                                            g_layout,
                                             config->get().led_brightness);
     auto* wifi = new WifiManager(config->get());
     auto* mqtt = new MqttManager();

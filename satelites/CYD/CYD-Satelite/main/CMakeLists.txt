@@ -3,6 +3,7 @@ idf_component_register(
         "main.cpp"
         "config.cpp"
         "led_controller.cpp"
+        "led_layout.cpp"
         "wifi_manager.cpp"
         "mqtt_manager.cpp"
         "web_server.cpp"

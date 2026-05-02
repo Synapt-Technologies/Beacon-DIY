@@ -19,8 +19,20 @@ private:
     IMqttManager&   m_mqtt;
     WebServer&      m_web;
 
-    void onMessage(const char* data, int len);
-    void applyState(const char* state);
+    // Last tally color (used by useTallyColor pattern steps)
+    struct Color { uint8_t r, g, b; };
+    Color m_tallyColor = {0, 0, 0};
+
+    bool m_beaconOnline = false;
+
+    void onTally      (const char* data, int len);
+    void onAlert      (const char* data, int len);
+    void onSystemInfo (const char* data, int len);
+
+    static Color    stateColor(int ss);
+    static LedTarget alertTarget(int target);
+    static int      extractInt(const char* data, int len,
+                               const char* key, int fallback);
 
     static void mqttTask(void* arg);
 };

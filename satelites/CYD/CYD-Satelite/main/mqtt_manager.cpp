@@ -6,12 +6,9 @@ static const char* TAG = "MqttManager";
 
 MqttManager::~MqttManager() { stop(); }
 
-void MqttManager::start(const char* url, const char* topic, MessageCb cb)
+void MqttManager::start(const char* url)
 {
     if (m_client) stop();
-
-    strlcpy(m_topic, topic, sizeof(m_topic));
-    m_cb = cb;
 
     esp_mqtt_client_config_t cfg = {};
     cfg.broker.address.uri = url;
@@ -22,7 +19,24 @@ void MqttManager::start(const char* url, const char* topic, MessageCb cb)
                                    (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID,
                                    eventHandler, this);
     esp_mqtt_client_start(m_client);
-    ESP_LOGI(TAG, "Started. broker=%s topic=%s", url, topic);
+    ESP_LOGI(TAG, "Connecting to %s", url);
+}
+
+void MqttManager::subscribe(const char* topic, MessageCb cb)
+{
+    if (m_subCount >= MAX_SUBS) {
+        ESP_LOGE(TAG, "Subscription limit reached");
+        return;
+    }
+    Subscription& s = m_subs[m_subCount++];
+    strlcpy(s.topic, topic, sizeof(s.topic));
+    s.cb = cb;
+
+    // If already connected, subscribe immediately
+    if (m_connected && m_client)
+        esp_mqtt_client_subscribe(m_client, topic, 0);
+
+    ESP_LOGI(TAG, "Registered subscription: %s", topic);
 }
 
 void MqttManager::stop()
@@ -38,12 +52,17 @@ bool MqttManager::isConnected() const { return m_connected; }
 
 // ── private ──────────────────────────────────────────────────────────────────
 
+void MqttManager::resubscribeAll()
+{
+    for (int i = 0; i < m_subCount; i++)
+        esp_mqtt_client_subscribe(m_client, m_subs[i].topic, 0);
+}
+
 void MqttManager::eventHandler(void* arg, esp_event_base_t /*base*/,
-                                int32_t id, void* data)
+                                int32_t /*id*/, void* data)
 {
     static_cast<MqttManager*>(arg)->onEvent(
         static_cast<esp_mqtt_event_handle_t>(data));
-    (void)id;
 }
 
 void MqttManager::onEvent(esp_mqtt_event_handle_t event)
@@ -51,8 +70,8 @@ void MqttManager::onEvent(esp_mqtt_event_handle_t event)
     switch (event->event_id) {
     case MQTT_EVENT_CONNECTED:
         m_connected = true;
-        ESP_LOGI(TAG, "Connected, subscribing to %s", m_topic);
-        esp_mqtt_client_subscribe(m_client, m_topic, 0);
+        ESP_LOGI(TAG, "Connected");
+        resubscribeAll();
         break;
 
     case MQTT_EVENT_DISCONNECTED:
@@ -61,8 +80,16 @@ void MqttManager::onEvent(esp_mqtt_event_handle_t event)
         break;
 
     case MQTT_EVENT_DATA:
-        if (m_cb)
-            m_cb(event->data, event->data_len);
+        // Route to the matching subscription callback
+        for (int i = 0; i < m_subCount; i++) {
+            // Topic in event may not be null-terminated; compare with length
+            if ((int)strlen(m_subs[i].topic) == event->topic_len &&
+                memcmp(m_subs[i].topic, event->topic, event->topic_len) == 0) {
+                if (m_subs[i].cb)
+                    m_subs[i].cb(event->data, event->data_len);
+                break;
+            }
+        }
         break;
 
     case MQTT_EVENT_ERROR:
