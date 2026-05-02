@@ -1,15 +1,13 @@
 #include "led_controller.h"
-#include "sdkconfig.h"
-
-#define ADD_LED_STRIP_LED_NUMBER 21
 
 CompositeLedController::CompositeLedController(led_strip_handle_t strip,
                                                gpio_num_t rPin,
                                                gpio_num_t gPin,
                                                gpio_num_t bPin,
+                                               int ledCount,
                                                uint8_t brightness)
     : m_strip(strip), m_rPin(rPin), m_gPin(gPin), m_bPin(bPin),
-      m_brightness(brightness), m_ledCount(ADD_LED_STRIP_LED_NUMBER)
+      m_brightness(brightness), m_ledCount(ledCount)
 {
     gpio_set_direction(m_rPin, GPIO_MODE_OUTPUT);
     gpio_set_direction(m_gPin, GPIO_MODE_OUTPUT);
@@ -19,16 +17,15 @@ CompositeLedController::CompositeLedController(led_strip_handle_t strip,
 
 void CompositeLedController::setColor(uint8_t r, uint8_t g, uint8_t b)
 {
-    uint8_t sr = scale(r);
-    uint8_t sg = scale(g);
-    uint8_t sb = scale(b);
+    const uint8_t sr = scale(r);
+    const uint8_t sg = scale(g);
+    const uint8_t sb = scale(b);
 
-    // Fixed RGB LED — active-low
+    // Fixed RGB LED — active-low: low = on
     gpio_set_level(m_rPin, sr > 0 ? 0 : 1);
     gpio_set_level(m_gPin, sg > 0 ? 0 : 1);
     gpio_set_level(m_bPin, sb > 0 ? 0 : 1);
 
-    // Addressable strip
     if (sr == 0 && sg == 0 && sb == 0) {
         led_strip_clear(m_strip);
     } else {

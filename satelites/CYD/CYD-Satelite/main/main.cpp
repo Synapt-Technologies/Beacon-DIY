@@ -48,24 +48,29 @@ extern "C" void app_main()
 {
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    ESP_ERROR_CHECK(nvs_flash_init());
+    // Erase and reinit NVS if the partition is full or the layout changed
+    esp_err_t nvs_err = nvs_flash_init();
+    if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_err = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_err);
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    // Allocate all long-lived objects on the heap so the main task stack
-    // only holds pointers (default stack is 3584 bytes; the objects together
-    // exceed that, especially WifiManager which carries wifi_ap_record_t[16]).
+    // All objects on heap — WifiManager alone is ~1.4 KB due to wifi_ap_record_t[16]
     auto* config = new NvsConfig();
     config->load();
 
     led_strip_handle_t strip = createLedStrip();
     auto* leds = new CompositeLedController(strip,
                                             FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO,
+                                            ADD_LED_STRIP_LED_NUMBER,
                                             config->get().led_brightness);
     auto* wifi = new WifiManager(config->get());
     auto* mqtt = new MqttManager();
     auto* web  = new WebServer(*config, *wifi, *mqtt);
     auto* app  = new BeaconApp(*leds, *config, *wifi, *mqtt, *web);
 
-    app->run(); // does not return
+    app->run(); // spawns tasks then deletes the main task
 }

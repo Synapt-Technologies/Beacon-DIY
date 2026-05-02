@@ -16,7 +16,8 @@ public:
     int            getApRecords(wifi_ap_record_t* out,
                                 uint16_t max)                  const override;
 
-    EventGroupHandle_t eventGroup() const { return m_eg; }
+    void           waitForConnection()                         const override;
+    void           triggerScan()                                     override;
 
 private:
     const DeviceConfig& m_cfg;

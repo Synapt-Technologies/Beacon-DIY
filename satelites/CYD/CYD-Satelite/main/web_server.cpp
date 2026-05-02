@@ -182,7 +182,7 @@ esp_err_t WebServer::handleSetCfg(httpd_req_t* req)
 {
     auto* self = static_cast<WebServer*>(req->user_ctx);
 
-    char body[512] = {};
+    char body[768] = {};
     int  received  = httpd_req_recv(req, body,
                                     sizeof(body) - 1 < (size_t)req->content_len
                                         ? sizeof(body) - 1
@@ -237,20 +237,26 @@ esp_err_t WebServer::handleScan(httpd_req_t* req)
 {
     auto* self = static_cast<WebServer*>(req->user_ctx);
 
-    wifi_ap_record_t records[16];
+    // Kick off a background scan so the *next* request gets fresher results
+    self->m_wifi.triggerScan();
+
+    // Heap-allocate: wifi_ap_record_t is ~88 bytes × 16 = ~1400 bytes — too large for httpd task stack
+    auto* records = new wifi_ap_record_t[16];
     int count = self->m_wifi.getApRecords(records, 16);
 
-    char buf[1024] = "[";
-    for (int i = 0; i < count; i++) {
-        if (i > 0) strlcat(buf, ",", sizeof(buf));
-        char entry[64];
-        snprintf(entry, sizeof(entry), "\"%s\"", (char*)records[i].ssid);
-        strlcat(buf, entry, sizeof(buf));
-    }
-    strlcat(buf, "]", sizeof(buf));
-
     httpd_resp_set_type(req, "application/json");
-    return httpd_resp_sendstr(req, buf);
+    httpd_resp_sendstr_chunk(req, "[");
+    bool first = true;
+    for (int i = 0; i < count; i++) {
+        if (records[i].ssid[0] == '\0') continue;
+        char entry[40];
+        snprintf(entry, sizeof(entry), "%s\"%s\"", first ? "" : ",", (char*)records[i].ssid);
+        httpd_resp_sendstr_chunk(req, entry);
+        first = false;
+    }
+    httpd_resp_sendstr_chunk(req, "]");
+    delete[] records;
+    return httpd_resp_sendstr_chunk(req, nullptr);
 }
 
 esp_err_t WebServer::handleStatus(httpd_req_t* req)

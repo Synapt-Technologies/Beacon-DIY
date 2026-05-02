@@ -7,6 +7,7 @@ class CompositeLedController : public ILedController {
 public:
     CompositeLedController(led_strip_handle_t strip,
                            gpio_num_t rPin, gpio_num_t gPin, gpio_num_t bPin,
+                           int ledCount,
                            uint8_t brightness = 255);
 
     void setColor(uint8_t r, uint8_t g, uint8_t b) override;

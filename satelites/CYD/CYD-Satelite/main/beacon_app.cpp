@@ -8,7 +8,7 @@ static const char* TAG = "BeaconApp";
 
 BeaconApp::BeaconApp(ILedController& leds,
                      IConfig&        config,
-                     WifiManager&    wifi,
+                     IWifiManager&   wifi,
                      IMqttManager&   mqtt,
                      WebServer&      web)
     : m_leds(leds), m_config(config), m_wifi(wifi), m_mqtt(mqtt), m_web(web) {}
@@ -21,8 +21,8 @@ void BeaconApp::run()
     // Start the MQTT task — it blocks until WiFi is ready, then stays alive
     xTaskCreate(mqttTask, "beacon_mqtt", 4096, this, 5, nullptr);
 
-    // run() never returns; main task suspends
-    vTaskSuspend(nullptr);
+    // All work is done in child tasks; delete the main task to free its stack
+    vTaskDelete(nullptr);
 }
 
 // ── MQTT task ─────────────────────────────────────────────────────────────────
@@ -31,10 +31,7 @@ void BeaconApp::mqttTask(void* arg)
 {
     auto* self = static_cast<BeaconApp*>(arg);
 
-    // Wait until STA is connected before starting MQTT
-    xEventGroupWaitBits(self->m_wifi.eventGroup(),
-                        WIFI_CONNECTED_BIT,
-                        pdFALSE, pdTRUE, portMAX_DELAY);
+    self->m_wifi.waitForConnection();
 
     const DeviceConfig& cfg = self->m_config.get();
     if (cfg.mqtt_url[0] == '\0' || cfg.mqtt_topic[0] == '\0') {

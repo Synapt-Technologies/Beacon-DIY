@@ -37,6 +37,8 @@ public:
     virtual esp_ip4_addr_t getStaIp()                                  const = 0;
     virtual int            getApRecords(wifi_ap_record_t* out,
                                         uint16_t max)                  const = 0;
+    virtual void           waitForConnection()                         const = 0;
+    virtual void           triggerScan()                                     = 0;
 };
 
 class IMqttManager {

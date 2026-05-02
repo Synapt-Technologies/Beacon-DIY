@@ -52,6 +52,17 @@ bool WifiManager::isConnected() const { return m_connected; }
 
 esp_ip4_addr_t WifiManager::getStaIp() const { return m_ip; }
 
+void WifiManager::waitForConnection() const
+{
+    xEventGroupWaitBits(m_eg, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+}
+
+void WifiManager::triggerScan()
+{
+    wifi_scan_config_t cfg = {};
+    esp_wifi_scan_start(&cfg, false);
+}
+
 int WifiManager::getApRecords(wifi_ap_record_t* out, uint16_t max) const
 {
     uint16_t n = m_apCount < max ? m_apCount : max;

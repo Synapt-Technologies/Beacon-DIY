@@ -1,13 +1,12 @@
 #pragma once
 #include "interfaces.h"
 #include "web_server.h"
-#include "wifi_manager.h"
 
 class BeaconApp {
 public:
     BeaconApp(ILedController& leds,
               IConfig&        config,
-              WifiManager&    wifi,
+              IWifiManager&   wifi,
               IMqttManager&   mqtt,
               WebServer&      web);
 
@@ -16,7 +15,7 @@ public:
 private:
     ILedController& m_leds;
     IConfig&        m_config;
-    WifiManager&    m_wifi;
+    IWifiManager&   m_wifi;
     IMqttManager&   m_mqtt;
     WebServer&      m_web;
 
