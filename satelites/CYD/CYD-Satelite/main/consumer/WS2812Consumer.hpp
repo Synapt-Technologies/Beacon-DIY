@@ -1,13 +1,14 @@
 #pragma once
 
-#include "consumer/IConsumer.h"
+#include "consumer/IConsumer.hpp"
 #include "driver/gpio.h"
 #include "led_pattern.h"
 
 
 class WS2812Consumer : public IConsumer {
 
-    WS2812Consumer(led_strip_handle_t strip, uint8_t count, TallyAlertTarget target) {
+public:
+    WS2812Consumer(led_strip_handle_t strip, uint8_t count, DeviceAlertTarget target) {
 
         _target = target;
         _strip = strip;
@@ -19,13 +20,13 @@ class WS2812Consumer : public IConsumer {
 
 private:
 
-    TallyAlertTarget _target;
-    
+    DeviceAlertTarget  _target;
+
     led_strip_handle_t _strip;
     int                _ledCount;
 
     void applyState(TallyState state) override {
-                switch (state)
+        switch (state)
         {
             case TallyState::NONE:
                 this->setColor(0, 0, 0);
@@ -48,7 +49,7 @@ private:
         }
     }
 
-    void setColor(uint8_t r, uint8_t g, uint8_t b) { // TODO PWM
+    void setColor(uint8_t r, uint8_t g, uint8_t b) {
 
         const uint8_t sr = scale_brightness(r);
         const uint8_t sg = scale_brightness(g);
@@ -56,6 +57,8 @@ private:
 
         for (int i = 0; i < _ledCount; i++)
             led_strip_set_pixel(_strip, i, sr, sg, sb);
+
+        led_strip_refresh(_strip);
     }
 
 
@@ -82,7 +85,7 @@ private:
     uint8_t getAlertStepCount(DeviceAlertAction action) override {
         return this->getAlertPattern(action)->patternLen;
     }
-    
+
     // Returns nullptr for CLEAR (no pattern). TallyState::NONE = LED off.
     static const AlertPatternConfig* getAlertPattern(DeviceAlertAction action) {
 
@@ -106,4 +109,4 @@ private:
             default:                        return nullptr;
         }
     }
-}
+};

@@ -77,7 +77,6 @@ protected:
         }
 
         self->applyState(self->_state);
-        self->_alertTask = nullptr;
         delete a;
         vTaskDelete(nullptr);
     }
@@ -87,6 +86,12 @@ protected:
     virtual void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) = 0;
 
     void startAlertTask(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
+
+        if (_alertTask) {
+            TaskHandle_t h = _alertTask;
+            _alertTask = nullptr;
+            xTaskNotifyGive(h);
+        }
 
         auto* arg    = new AlertTaskArg;
         arg->self    = this;
@@ -101,7 +106,9 @@ protected:
 
         if (!_alertTask) return;
 
-        xTaskNotifyGive(_alertTask);
+        TaskHandle_t h = _alertTask;
+        _alertTask = nullptr;
+        xTaskNotifyGive(h);
     };
 
 

@@ -1,13 +1,14 @@
 #pragma once
 
-#include "consumer/IConsumer.h"
+#include "consumer/IConsumer.hpp"
 #include "driver/gpio.h"
 #include "led_pattern.h"
 
 
 class SimpleRGBConsumer : public IConsumer {
 
-    SimpleRGBConsumer(gpio_num_t rPin, gpio_num_t gPin, gpio_num_t bPin, TallyAlertTarget target) {
+public:
+    SimpleRGBConsumer(gpio_num_t rPin, gpio_num_t gPin, gpio_num_t bPin, DeviceAlertTarget target) {
         _rPin = rPin;
         _gPin = gPin;
         _bPin = bPin;
@@ -27,11 +28,11 @@ class SimpleRGBConsumer : public IConsumer {
 
 private:
 
-    gpio_num_t _rPin, _gPin, _bPin;
-    TallyAlertTarget _target;
+    gpio_num_t        _rPin, _gPin, _bPin;
+    DeviceAlertTarget _target;
 
     void applyState(TallyState state) override {
-                switch (state)
+        switch (state)
         {
             case TallyState::NONE:
                 this->setColor(0, 0, 0);
@@ -89,7 +90,7 @@ private:
     uint8_t getAlertStepCount(DeviceAlertAction action) override {
         return this->getAlertPattern(action)->patternLen;
     }
-    
+
     // Returns nullptr for CLEAR (no pattern). TallyState::NONE = LED off.
     static const AlertPatternConfig* getAlertPattern(DeviceAlertAction action) {
 
@@ -113,4 +114,4 @@ private:
             default:                        return nullptr;
         }
     }
-}
+};
