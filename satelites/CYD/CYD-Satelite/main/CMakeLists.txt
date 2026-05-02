@@ -13,4 +13,8 @@ idf_component_register(
         esp_driver_gpio led_strip
         mqtt esp_netif esp_wifi nvs_flash
         esp_http_server
+    EMBED_TXTFILES
+        "ui/index.html"
+        "ui/ui.css"
+        "ui/ui.js"
 )

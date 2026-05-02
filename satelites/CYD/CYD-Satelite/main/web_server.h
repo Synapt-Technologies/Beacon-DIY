@@ -21,6 +21,8 @@ private:
     bool           m_rebootNeeded = false;
 
     static esp_err_t handleRoot  (httpd_req_t* req);
+    static esp_err_t handleUiCss (httpd_req_t* req);
+    static esp_err_t handleUiJs  (httpd_req_t* req);
     static esp_err_t handleGetCfg(httpd_req_t* req);
     static esp_err_t handleSetCfg(httpd_req_t* req);
     static esp_err_t handleReboot(httpd_req_t* req);

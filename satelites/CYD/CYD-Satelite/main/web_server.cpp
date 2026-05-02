@@ -6,189 +6,54 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 static const char* TAG = "WebServer";
 
-// ── Embedded HTML ─────────────────────────────────────────────────────────────
+// ── Embedded UI assets ─────────────────────────────────────────────────────────
 
-static const char HTML[] = R"html(<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CYD Satelite</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:sans-serif;background:#111;color:#eee;max-width:520px;margin:0 auto;padding:16px}
-h1{font-size:1.2rem;margin-bottom:16px;color:#4af}
-h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.1em;color:#888;margin:20px 0 8px}
-label{display:block;font-size:.85rem;margin-bottom:4px;color:#aaa}
-input,select,textarea{width:100%;padding:8px;background:#222;border:1px solid #444;color:#eee;border-radius:4px;font-size:.9rem;margin-bottom:12px}
-input[type=range]{padding:4px}
-textarea{resize:vertical;min-height:60px;font-family:monospace;font-size:.8rem}
-button{width:100%;padding:10px;background:#4af;border:none;border-radius:4px;color:#000;font-weight:bold;cursor:pointer;font-size:.95rem}
-button:active{background:#28d}
-.scan-btn{background:#333;color:#eee;margin-bottom:12px}
-#status{font-size:.8rem;padding:8px;background:#1a1a1a;border-radius:4px;margin-bottom:16px}
-.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
-.on{background:#4f4}.off{background:#f44}
-.alert{display:none;background:#3a2a00;border:1px solid #b8860b;color:#ffd46b;border-radius:4px;padding:10px;margin-bottom:12px;font-size:.85rem}
-.alert.show{display:block}
-#msg{margin-top:12px;text-align:center;font-size:.85rem;color:#4af;min-height:1.2em}
-#bright-val{display:inline;margin-left:8px;font-size:.85rem;color:#aaa}
-code{display:block;padding:6px 8px;background:#1a1a1a;border-radius:4px;font-size:.8rem;color:#8cf;margin-bottom:12px;word-break:break-all}
-.hint{font-size:.75rem;color:#666;margin-top:-8px;margin-bottom:10px}
-</style>
-</head>
-<body>
-<h1>CYD Satelite</h1>
-<div id="status">Loading…</div>
-<div id="reboot_alert" class="alert">
-  Reboot required to apply saved changes.
-  <button onclick="rebootDevice()">Reboot now</button>
-</div>
+extern const uint8_t ui_index_html_start[] asm("_binary_index_html_start");
+extern const uint8_t ui_index_html_end[]   asm("_binary_index_html_end");
+extern const uint8_t ui_ui_css_start[]     asm("_binary_ui_css_start");
+extern const uint8_t ui_ui_css_end[]       asm("_binary_ui_css_end");
+extern const uint8_t ui_ui_js_start[]      asm("_binary_ui_js_start");
+extern const uint8_t ui_ui_js_end[]        asm("_binary_ui_js_end");
 
-<h2>Device</h2>
-<label>Name</label>
-<input id="device_name" type="text" maxlength="31">
-<label>LED Brightness <span id="bright-val">255</span></label>
-<input id="led_brightness" type="range" min="0" max="255" value="255"
-       oninput="document.getElementById('bright-val').textContent=this.value">
-<button onclick="saveSection('device')">Save Device</button>
+struct EmbeddedAsset {
+    const uint8_t* data;
+    size_t         size;
+    const char*    contentType;
+    bool           trimNullTerminator;
+};
 
-<h2>WiFi</h2>
-<label>Network</label>
-<select id="wifi_ssid_sel" onchange="document.getElementById('wifi_ssid').value=this.value">
-  <option value="">— scan results —</option>
-</select>
-<label>SSID (manual)</label>
-<input id="wifi_ssid" type="text" maxlength="63">
-<label>Password</label>
-<input id="wifi_pass" type="password" maxlength="63" placeholder="leave blank to keep current">
-<button class="scan-btn" onclick="scan()">Scan</button>
-<button onclick="saveSection('wifi')">Save WiFi</button>
+static const EmbeddedAsset INDEX_HTML = {
+    ui_index_html_start,
+    static_cast<size_t>(ui_index_html_end - ui_index_html_start),
+    "text/html; charset=utf-8",
+    true
+};
 
-<h2>MQTT Broker</h2>
-<label>Broker URL</label>
-<input id="mqtt_url" type="text" placeholder="mqtt://192.168.1.100" maxlength="127">
-<button onclick="saveSection('mqtt')">Save MQTT</button>
+static const EmbeddedAsset UI_CSS = {
+    ui_ui_css_start,
+    static_cast<size_t>(ui_ui_css_end - ui_ui_css_start),
+    "text/css; charset=utf-8",
+    true
+};
 
-<h2>Beacon Identity</h2>
-<label>Consumer ID</label>
-<input id="consumer_id" type="text" placeholder="aedes" maxlength="31" oninput="updateTopic()">
-<label>Device ID</label>
-<input id="device_id" type="text" placeholder="leave blank to use MAC" maxlength="47" oninput="updateTopic()">
-<p class="hint">Leave Device ID blank to auto-assign from MAC address on next boot.</p>
-<label>Tally topic (derived)</label>
-<code id="derived_topic">tally/device/…/…</code>
-<button onclick="saveSection('beacon')">Save Beacon</button>
+static const EmbeddedAsset UI_JS = {
+    ui_ui_js_start,
+    static_cast<size_t>(ui_ui_js_end - ui_ui_js_start),
+    "application/javascript; charset=utf-8",
+    true
+};
 
-<h2>LED Layout</h2>
-<label>Layout descriptor</label>
-<textarea id="led_layout" rows="3"></textarea>
-<p class="hint">
-  Format: <b>F=&lt;target&gt;</b> for fixed LED, <b>S=&lt;start&gt;,&lt;count&gt;,&lt;target&gt;</b> for strip sections.<br>
-  Targets: OPERATOR | TALENT | ALL | NONE &nbsp;—&nbsp; separated by semicolons.<br>
-  Example: <code style="display:inline;padding:2px 4px">F=OPERATOR;S=0,11,TALENT;S=11,10,OPERATOR</code>
-</p>
-<button onclick="saveSection('layout')">Save Layout</button>
-
-<div id="msg"></div>
-
-<script>
-function updateTopic(){
-  const c=document.getElementById('consumer_id').value||'…';
-  const d=document.getElementById('device_id').value||'&lt;mac&gt;';
-  document.getElementById('derived_topic').textContent='tally/device/'+c+'/'+d;
+static esp_err_t sendAsset(httpd_req_t* req, const EmbeddedAsset& asset)
+{
+    httpd_resp_set_type(req, asset.contentType);
+    const size_t payloadSize =
+        (asset.trimNullTerminator && asset.size > 0) ? asset.size - 1 : asset.size;
+    return httpd_resp_send(req, reinterpret_cast<const char*>(asset.data), payloadSize);
 }
-async function load(){
-  try{
-    const r=await fetch('/api/config');
-    const d=await r.json();
-    document.getElementById('device_name').value=d.device_name||'';
-    document.getElementById('led_brightness').value=d.led_brightness??255;
-    document.getElementById('bright-val').textContent=d.led_brightness??255;
-    document.getElementById('wifi_ssid').value=d.wifi_ssid||'';
-    document.getElementById('mqtt_url').value=d.mqtt_url||'';
-    document.getElementById('consumer_id').value=d.consumer_id||'aedes';
-    document.getElementById('device_id').value=d.device_id||'';
-    document.getElementById('led_layout').value=d.led_layout||'';
-    updateTopic();
-  }catch(e){msg('Failed to load config')}
-}
-async function scan(){
-  try{
-    const r=await fetch('/api/scan');
-    const d=await r.json();
-    const sel=document.getElementById('wifi_ssid_sel');
-    sel.innerHTML='<option value="">— scan results —</option>';
-    d.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o)});
-  }catch(e){msg('Scan failed')}
-}
-async function saveSection(section){
-  let body={};
-  switch(section){
-    case 'device':
-      body={device_name:document.getElementById('device_name').value,led_brightness:parseInt(document.getElementById('led_brightness').value)};
-      break;
-    case 'wifi':
-      body={wifi_ssid:document.getElementById('wifi_ssid').value};
-      const pass=document.getElementById('wifi_pass').value;
-      if(pass)body.wifi_pass=pass;
-      break;
-    case 'mqtt':
-      body={mqtt_url:document.getElementById('mqtt_url').value};
-      break;
-    case 'beacon':
-      body={consumer_id:document.getElementById('consumer_id').value,device_id:document.getElementById('device_id').value};
-      break;
-    case 'layout':
-      body={led_layout:document.getElementById('led_layout').value};
-      break;
-  }
-  try{
-    const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(r.ok){
-      setRebootNeeded(true);
-      msg('Saved — reboot required');
-    }else{
-      msg('Save failed');
-    }
-  }catch(e){msg('Save failed')}
-}
-async function rebootDevice(){
-  try{
-    const r=await fetch('/api/reboot',{method:'POST'});
-    if(r.ok){
-      msg('Rebooting…');
-      setRebootNeeded(false);
-    }else{
-      msg('Reboot failed');
-    }
-  }catch(e){
-    msg('Reboot failed');
-  }
-}
-function setRebootNeeded(needed){
-  document.getElementById('reboot_alert').className=needed?'alert show':'alert';
-}
-async function pollStatus(){
-  try{
-    const r=await fetch('/api/status');
-    const d=await r.json();
-    document.getElementById('status').innerHTML=
-      '<span class="dot '+(d.wifi?'on':'off')+'"></span>WiFi: '+(d.wifi?d.ip:'disconnected')+
-      ' &nbsp;<span class="dot '+(d.mqtt?'on':'off')+'"></span>MQTT'+
-      ' &nbsp;<span class="dot '+(d.beacon?'on':'off')+'"></span>Beacon';
-    setRebootNeeded(d.reboot_needed===true);
-  }catch(e){}
-}
-function msg(t){document.getElementById('msg').textContent=t}
-load();scan();pollStatus();
-setInterval(pollStatus,3000);
-</script>
-</body>
-</html>)html";
 
 // ── WebServer ─────────────────────────────────────────────────────────────────
 
@@ -200,7 +65,7 @@ WebServer::~WebServer() { stop(); }
 void WebServer::start()
 {
     httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
-    cfg.max_uri_handlers = 8;
+    cfg.max_uri_handlers = 12;
 
     if (httpd_start(&m_server, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start HTTP server");
@@ -209,14 +74,19 @@ void WebServer::start()
 
     httpd_uri_t uris[] = {
         { "/",           HTTP_GET,  handleRoot,   this },
+        { "/ui.css",     HTTP_GET,  handleUiCss,  this },
+        { "/ui.js",      HTTP_GET,  handleUiJs,   this },
         { "/api/config", HTTP_GET,  handleGetCfg, this },
         { "/api/config", HTTP_POST, handleSetCfg, this },
         { "/api/reboot", HTTP_POST, handleReboot, this },
         { "/api/scan",   HTTP_GET,  handleScan,   this },
         { "/api/status", HTTP_GET,  handleStatus, this },
     };
-    for (auto& u : uris)
-        httpd_register_uri_handler(m_server, &u);
+    for (auto& u : uris) {
+        if (httpd_register_uri_handler(m_server, &u) != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to register URI handler: %s", u.uri);
+        }
+    }
 
     ESP_LOGI(TAG, "HTTP server started on port %d", cfg.server_port);
 }
@@ -233,8 +103,17 @@ void WebServer::stop()
 
 esp_err_t WebServer::handleRoot(httpd_req_t* req)
 {
-    httpd_resp_set_type(req, "text/html");
-    return httpd_resp_send(req, HTML, HTTPD_RESP_USE_STRLEN);
+    return sendAsset(req, INDEX_HTML);
+}
+
+esp_err_t WebServer::handleUiCss(httpd_req_t* req)
+{
+    return sendAsset(req, UI_CSS);
+}
+
+esp_err_t WebServer::handleUiJs(httpd_req_t* req)
+{
+    return sendAsset(req, UI_JS);
 }
 
 esp_err_t WebServer::handleGetCfg(httpd_req_t* req)
