@@ -17,7 +17,7 @@ public:
 
     virtual void setAlert(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
         if (action == DeviceAlertAction::CLEAR) {
-            this->stopAlertTask(target);
+            this->stopAlertTask();
         } else {
             this->startAlertTask(action, target, timeout);
         }
@@ -60,7 +60,7 @@ protected:
 
         uint8_t step = 0;
 
-        uint32_t step_length = self->getAlertStepLength(a->action);
+        TickType_t step_ticks = pdMS_TO_TICKS(self->getAlertStepLength(a->action));
         uint8_t step_count = self->getAlertStepCount(a->action);
 
         while (xTaskGetTickCount() < start_time + parsed_timeout || infinite_timeout) {
@@ -69,9 +69,9 @@ protected:
             if (step >= step_count) step = 0;
 
             TickType_t parsed_delay =
-                (xTaskGetTickCount() + step_length > start_time + parsed_timeout) && !infinite_timeout ?
+                (xTaskGetTickCount() + step_ticks > start_time + parsed_timeout) && !infinite_timeout ?
                 (start_time + parsed_timeout - xTaskGetTickCount()) :
-                step_length;
+                step_ticks;
 
             if (ulTaskNotifyTake(pdTRUE, parsed_delay)) break;
         }
@@ -102,7 +102,7 @@ protected:
         xTaskCreate(alertTask, "led_pat", 2048, arg, 18, &_alertTask);
     };
 
-    void stopAlertTask(DeviceAlertTarget target) {
+    void stopAlertTask() {
 
         if (!_alertTask) return;
 
