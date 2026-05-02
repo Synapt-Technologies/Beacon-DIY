@@ -9,6 +9,7 @@ public:
 
     void start(const char* url)                     override;
     void subscribe(const char* topic, MessageCb cb) override;
+    void clearSubscriptions()                       override;
     void stop()                                     override;
     bool isConnected()                        const override;
 

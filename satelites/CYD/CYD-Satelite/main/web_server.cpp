@@ -1,4 +1,5 @@
 #include "web_server.h"
+#include "beacon_app.h"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -141,6 +142,7 @@ esp_err_t WebServer::handleGetCfg(httpd_req_t* req)
 esp_err_t WebServer::handleSetCfg(httpd_req_t* req)
 {
     auto* self = static_cast<WebServer*>(req->user_ctx);
+    DeviceConfig oldCfg = self->m_config.get();
 
     char body[768] = {};
     int received = httpd_req_recv(req, body,
@@ -169,7 +171,7 @@ esp_err_t WebServer::handleSetCfg(httpd_req_t* req)
         if (p) out = (uint8_t)atoi(p + strlen(search));
     };
 
-    DeviceConfig cfg = self->m_config.get();
+    DeviceConfig cfg = oldCfg;
     
     auto hasField = [&](const char* key) {
         char search[64];
@@ -192,8 +194,28 @@ esp_err_t WebServer::handleSetCfg(httpd_req_t* req)
         return ESP_FAIL;
     }
 
-    self->m_rebootNeeded = true;
-    httpd_resp_sendstr(req, "{\"ok\":true}");
+    bool rebootNeeded = false;
+    if (self->m_app) {
+        self->m_app->applyRuntimeConfig(oldCfg, cfg, rebootNeeded);
+    } else {
+        rebootNeeded =
+            strcmp(oldCfg.device_name, cfg.device_name) != 0 ||
+            oldCfg.led_brightness != cfg.led_brightness ||
+            strcmp(oldCfg.wifi_ssid, cfg.wifi_ssid) != 0 ||
+            strcmp(oldCfg.wifi_pass, cfg.wifi_pass) != 0 ||
+            strcmp(oldCfg.mqtt_url, cfg.mqtt_url) != 0 ||
+            strcmp(oldCfg.consumer_id, cfg.consumer_id) != 0 ||
+            strcmp(oldCfg.device_id, cfg.device_id) != 0 ||
+            strcmp(oldCfg.led_layout, cfg.led_layout) != 0;
+    }
+
+    self->m_rebootNeeded = self->m_rebootNeeded || rebootNeeded;
+
+    char resp[64];
+    snprintf(resp, sizeof(resp), "{\"ok\":true,\"reboot_needed\":%s}",
+             self->m_rebootNeeded ? "true" : "false");
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, resp);
     return ESP_OK;
 }
 

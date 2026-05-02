@@ -77,8 +77,14 @@ async function saveSection(section){
       body:JSON.stringify(body)
     });
     if(r.ok){
-      setRebootNeeded(true);
-      msg('Saved - reboot required');
+      let rebootNeeded = true;
+      try{
+        const d = await r.json();
+        rebootNeeded = d.reboot_needed === true;
+      }catch(_e){
+      }
+      setRebootNeeded(rebootNeeded);
+      msg(rebootNeeded ? 'Saved - reboot required' : 'Saved');
     }else{
       msg('Save failed');
     }

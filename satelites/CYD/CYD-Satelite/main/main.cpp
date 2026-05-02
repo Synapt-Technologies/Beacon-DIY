@@ -79,6 +79,7 @@ extern "C" void app_main()
     auto* mqtt = new MqttManager();
     auto* web  = new WebServer(*config, *wifi, *mqtt);
     auto* app  = new BeaconApp(*leds, *config, *wifi, *mqtt, *web);
+    web->setBeaconApp(app);
 
     app->run(); // spawns tasks then deletes the main task
 }

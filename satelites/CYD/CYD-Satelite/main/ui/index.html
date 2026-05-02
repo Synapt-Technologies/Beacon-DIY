@@ -13,7 +13,7 @@
   <div id="status">Loading...</div>
 </header>
 <div id="reboot_alert" class="alert">
-  <span>Reboot required to apply saved changes.</span>
+  <span>Reboot required to apply pending layout changes.</span>
   <button class="reboot-btn" onclick="rebootDevice()">Reboot now</button>
 </div>
 
@@ -56,7 +56,7 @@
 <input id="consumer_id" type="text" placeholder="aedes" maxlength="31" oninput="updateTopic()">
 <label>Device ID</label>
 <input id="device_id" type="text" placeholder="leave blank to use MAC" maxlength="47" oninput="updateTopic()">
-<p class="hint">Leave Device ID blank to auto-assign from MAC address on next boot.</p>
+<p class="hint">Leave Device ID blank to use the WiFi MAC address.</p>
 <label>Tally topic (derived)</label>
 <code id="derived_topic">tally/device/.../...</code>
 <button onclick="saveSection('beacon')">Save Beacon</button>

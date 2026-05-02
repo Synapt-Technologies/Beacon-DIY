@@ -26,6 +26,81 @@ void BeaconApp::run()
     vTaskDelete(nullptr);
 }
 
+void BeaconApp::applyRuntimeConfig(const DeviceConfig& previous,
+                                   const DeviceConfig& current,
+                                   bool& rebootNeeded)
+{
+    rebootNeeded = false;
+
+    if (previous.led_brightness != current.led_brightness) {
+        m_leds.setBrightness(current.led_brightness);
+        m_leds.setColor(m_tallyColor.r, m_tallyColor.g, m_tallyColor.b);
+    }
+
+    const bool wifiChanged =
+        strcmp(previous.wifi_ssid, current.wifi_ssid) != 0 ||
+        strcmp(previous.wifi_pass, current.wifi_pass) != 0;
+    if (wifiChanged && !m_wifi.applyStaCredentials(current.wifi_ssid, current.wifi_pass)) {
+        ESP_LOGW(TAG, "Live WiFi reconfigure failed; reboot required");
+        rebootNeeded = true;
+    }
+
+    const bool mqttChanged =
+        strcmp(previous.mqtt_url, current.mqtt_url) != 0 ||
+        strcmp(previous.consumer_id, current.consumer_id) != 0 ||
+        strcmp(previous.device_id, current.device_id) != 0;
+    if (mqttChanged) {
+        configureMqtt(current, true);
+    }
+
+    if (strcmp(previous.led_layout, current.led_layout) != 0) {
+        rebootNeeded = true;
+    }
+}
+
+void BeaconApp::configureMqtt(const DeviceConfig& cfg, bool resetSubscriptions)
+{
+    if (resetSubscriptions) {
+        m_mqtt.stop();
+        m_mqtt.clearSubscriptions();
+    }
+
+    if (cfg.mqtt_url[0] == '\0') {
+        ESP_LOGW(TAG, "MQTT URL not configured — skipping");
+        return;
+    }
+
+    char tallyTopic[140], alertTopic[155];
+    buildTopics(cfg, tallyTopic, sizeof(tallyTopic), alertTopic, sizeof(alertTopic));
+
+    ESP_LOGI(TAG, "Tally topic: %s", tallyTopic);
+
+    m_mqtt.start(cfg.mqtt_url);
+    m_mqtt.subscribe(tallyTopic,    [this](auto d, auto l){ onTally(d, l); });
+    m_mqtt.subscribe(alertTopic,    [this](auto d, auto l){ onAlert(d, l); });
+    m_mqtt.subscribe("system/info", [this](auto d, auto l){ onSystemInfo(d, l); });
+}
+
+void BeaconApp::buildTopics(const DeviceConfig& cfg,
+                            char* tallyTopic, int tallyTopicLen,
+                            char* alertTopic, int alertTopicLen) const
+{
+    char derivedDeviceId[48];
+    const char* deviceId = cfg.device_id;
+    if (cfg.device_id[0] == '\0') {
+        uint8_t mac[6];
+        esp_read_mac(mac, ESP_MAC_WIFI_STA);
+        snprintf(derivedDeviceId, sizeof(derivedDeviceId),
+                 "%02x%02x%02x%02x%02x%02x",
+                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        deviceId = derivedDeviceId;
+    }
+
+    snprintf(tallyTopic, tallyTopicLen, "tally/device/%s/%s",
+             cfg.consumer_id, deviceId);
+    snprintf(alertTopic, alertTopicLen, "%s/alert", tallyTopic);
+}
+
 // ── MQTT task ─────────────────────────────────────────────────────────────────
 
 void BeaconApp::mqttTask(void* arg)
@@ -53,19 +128,7 @@ void BeaconApp::mqttTask(void* arg)
         vTaskDelete(nullptr);
         return;
     }
-
-    // Build topics
-    char tallyTopic[140], alertTopic[155];
-    snprintf(tallyTopic, sizeof(tallyTopic), "tally/device/%s/%s",
-             cfg.consumer_id, cfg.device_id);
-    snprintf(alertTopic, sizeof(alertTopic), "%s/alert", tallyTopic);
-
-    ESP_LOGI(TAG, "Tally topic: %s", tallyTopic);
-
-    self->m_mqtt.start(cfg.mqtt_url);
-    self->m_mqtt.subscribe(tallyTopic,    [self](auto d, auto l){ self->onTally(d, l); });
-    self->m_mqtt.subscribe(alertTopic,    [self](auto d, auto l){ self->onAlert(d, l); });
-    self->m_mqtt.subscribe("system/info", [self](auto d, auto l){ self->onSystemInfo(d, l); });
+    self->configureMqtt(cfg, false);
 
     vTaskDelete(nullptr);
 }

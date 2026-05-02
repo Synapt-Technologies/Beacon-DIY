@@ -11,6 +11,8 @@ public:
     explicit WifiManager(const DeviceConfig& cfg);
 
     void           start()                                           override;
+    bool           applyStaCredentials(const char* ssid,
+                                       const char* pass)             override;
     bool           isConnected()                               const override;
     esp_ip4_addr_t getStaIp()                                  const override;
     int            getApRecords(wifi_ap_record_t* out,

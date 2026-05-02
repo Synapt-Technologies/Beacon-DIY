@@ -2,6 +2,8 @@
 #include "interfaces.h"
 #include "esp_http_server.h"
 
+class BeaconApp;
+
 class WebServer {
 public:
     WebServer(IConfig& config, IWifiManager& wifi, IMqttManager& mqtt);
@@ -11,11 +13,13 @@ public:
     void stop();
 
     void setBeaconOnline(bool online) { m_beaconOnline = online; }
+    void setBeaconApp(BeaconApp* app) { m_app = app; }
 
 private:
     IConfig&       m_config;
     IWifiManager&  m_wifi;
     IMqttManager&  m_mqtt;
+    BeaconApp*     m_app          = nullptr;
     httpd_handle_t m_server       = nullptr;
     bool           m_beaconOnline = false;
     bool           m_rebootNeeded = false;

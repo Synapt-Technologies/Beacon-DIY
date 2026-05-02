@@ -58,6 +58,8 @@ class IWifiManager {
 public:
     virtual ~IWifiManager() = default;
     virtual void           start()                                           = 0;
+    virtual bool           applyStaCredentials(const char* ssid,
+                                               const char* pass)             = 0;
     virtual bool           isConnected()                               const = 0;
     virtual esp_ip4_addr_t getStaIp()                                  const = 0;
     virtual int            getApRecords(wifi_ap_record_t* out,
@@ -77,6 +79,7 @@ public:
     // Subscribe to topic; cb is called for every matching incoming message.
     // Safe to call before or after start() — re-subscribes on reconnect.
     virtual void subscribe(const char* topic, MessageCb cb)          = 0;
+    virtual void clearSubscriptions()                                 = 0;
 
     virtual void stop()                                              = 0;
     virtual bool isConnected()                                 const = 0;

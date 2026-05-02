@@ -52,6 +52,44 @@ bool WifiManager::isConnected() const { return m_connected; }
 
 esp_ip4_addr_t WifiManager::getStaIp() const { return m_ip; }
 
+bool WifiManager::applyStaCredentials(const char* ssid, const char* pass)
+{
+    if (!m_eg) {
+        ESP_LOGW(TAG, "Cannot apply STA config before start()");
+        return false;
+    }
+
+    wifi_config_t staCfg = {};
+    strlcpy((char*)staCfg.sta.ssid, ssid ? ssid : "", sizeof(staCfg.sta.ssid));
+    strlcpy((char*)staCfg.sta.password, pass ? pass : "", sizeof(staCfg.sta.password));
+    staCfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+
+    esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &staCfg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_set_config(STA) failed: %d", (int)err);
+        return false;
+    }
+
+    if (staCfg.sta.ssid[0] == '\0') {
+        esp_wifi_disconnect();
+        m_connected = false;
+        m_ip = {};
+        xEventGroupClearBits(m_eg, WIFI_CONNECTED_BIT);
+        ESP_LOGI(TAG, "STA credentials cleared");
+        return true;
+    }
+
+    esp_wifi_disconnect();
+    err = esp_wifi_connect();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_wifi_connect failed: %d", (int)err);
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Applied STA credentials for SSID '%s'", (char*)staCfg.sta.ssid);
+    return true;
+}
+
 void WifiManager::waitForConnection() const
 {
     xEventGroupWaitBits(m_eg, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);

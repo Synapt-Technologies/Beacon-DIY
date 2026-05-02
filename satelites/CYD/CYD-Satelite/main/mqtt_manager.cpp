@@ -39,6 +39,16 @@ void MqttManager::subscribe(const char* topic, MessageCb cb)
     ESP_LOGI(TAG, "Registered subscription: %s", topic);
 }
 
+void MqttManager::clearSubscriptions()
+{
+    if (m_client && m_connected) {
+        for (int i = 0; i < m_subCount; i++)
+            esp_mqtt_client_unsubscribe(m_client, m_subs[i].topic);
+    }
+    memset(m_subs, 0, sizeof(m_subs));
+    m_subCount = 0;
+}
+
 void MqttManager::stop()
 {
     if (!m_client) return;
