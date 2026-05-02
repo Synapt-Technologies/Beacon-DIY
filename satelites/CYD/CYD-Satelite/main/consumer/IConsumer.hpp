@@ -33,6 +33,11 @@ protected:
 
     TaskHandle_t _alertTask = {}; 
 
+    uint8_t scale_brightness(uint8_t value) const
+    {
+        return static_cast<uint8_t>((static_cast<uint16_t>(value) * _brightness) / 255u);
+    }
+
 
     virtual void applyState(TallyState state) = 0; // Sets the state without saving it to _state (used for patterns that override the state color)
 
@@ -66,6 +71,8 @@ protected:
                 step_length;
             vTaskDelay(parsed_delay);
         }
+
+        this->applyState(this->_state);
     }
 
     virtual uint32_t getAlertStepLength(DeviceAlertAction action) = 0;
@@ -89,6 +96,8 @@ protected:
         xTaskNotifyGive(_alertTask);
         vTaskDelay(pdMS_TO_TICKS(20));
         _alertTask = nullptr;
+        this->applyState(this->_state);
+        
     };
 
 
