@@ -3,6 +3,7 @@
 #include "types/TallyTypes.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <stdint.h>
 
 class IConsumer {
 public:
@@ -97,7 +98,7 @@ protected:
         vTaskDelay(pdMS_TO_TICKS(20));
         _alertTask = nullptr;
         this->applyState(this->_state);
-        
+
     };
 
 

@@ -25,17 +25,12 @@ class SimpleRGBConsumer : public IConsumer {
         gpio_set_direction(_bPin, GPIO_MODE_DEF_DISABLE);
     }
 
-    void setBrightness(uint8_t brightness) {
-        this->_brightness = brightness;
-        // TODO PWM
-    }
-
 private:
 
     gpio_num_t _rPin, _gPin, _bPin;
     TallyAlertTarget _target;
 
-    void applyState(TallyState state) {
+    void applyState(TallyState state) override {
                 switch (state)
         {
             case TallyState::NONE:
@@ -66,7 +61,7 @@ private:
     }
 
 
-    void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) {
+    void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) override {
         if (target != _target) return; // This consumer only reacts to its configured target
 
         const AlertPatternConfig* pattern = getAlertPattern(action);
@@ -82,11 +77,11 @@ private:
         uint8_t patternLen;
     };
 
-    uint32_t getAlertStepLength(DeviceAlertAction action) {
+    uint32_t getAlertStepLength(DeviceAlertAction action) override {
         return this->getAlertPattern(action)->speedMs;
     }
 
-    uint8_t getAlertStepCount(DeviceAlertAction action) {
+    uint8_t getAlertStepCount(DeviceAlertAction action) override {
         return this->getAlertPattern(action)->patternLen;
     }
     

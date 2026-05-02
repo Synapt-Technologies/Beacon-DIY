@@ -17,10 +17,6 @@ class WS2812Consumer : public IConsumer {
 
     }
 
-    void setBrightness(uint8_t brightness) {
-        this->_brightness = brightness;
-    }
-
 private:
 
     TallyAlertTarget _target;
@@ -28,7 +24,7 @@ private:
     led_strip_handle_t _strip;
     int                _ledCount;
 
-    void applyState(TallyState state) {
+    void applyState(TallyState state) override {
                 switch (state)
         {
             case TallyState::NONE:
@@ -63,7 +59,7 @@ private:
     }
 
 
-    void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) {
+    void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) override {
         if (target != _target) return; // This consumer only reacts to its configured target
 
         const AlertPatternConfig* pattern = getAlertPattern(action);
@@ -79,11 +75,11 @@ private:
         uint8_t patternLen;
     };
 
-    uint32_t getAlertStepLength(DeviceAlertAction action) {
+    uint32_t getAlertStepLength(DeviceAlertAction action) override {
         return this->getAlertPattern(action)->speedMs;
     }
 
-    uint8_t getAlertStepCount(DeviceAlertAction action) {
+    uint8_t getAlertStepCount(DeviceAlertAction action) override {
         return this->getAlertPattern(action)->patternLen;
     }
     
