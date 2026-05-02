@@ -52,20 +52,24 @@ protected:
 
         uint8_t step = 0;
 
-        uint32_t step_size = this->getAlertStepSize(state->action); // ms
+        uint32_t step_length = this->getAlertStepLength(state->action); // ms
+        uint8_t step_count = this->getAlertStepCount(state->action); 
 
         while (xTaskGetTickCount() < start_time + parsed_timeout || infinite_timeout) {
             this->setAlertStep(state->action, state->target, step++);
 
+            if (step >= step_count) step = 0;
+
             TickType_t parsed_delay = 
-                (xTaskGetTickCount() + step_size > start_time + parsed_timeout) && !infinite_timeout ?
+                (xTaskGetTickCount() + step_length > start_time + parsed_timeout) && !infinite_timeout ?
                 (start_time + parsed_timeout - xTaskGetTickCount()) :
-                step_size;
+                step_length;
             vTaskDelay(parsed_delay);
         }
     }
 
-    virtual uint32_t getAlertStepSize(DeviceAlertAction action) = 0;
+    virtual uint32_t getAlertStepLength(DeviceAlertAction action) = 0;
+    virtual uint8_t getAlertStepCount(DeviceAlertAction action) = 0;
     virtual void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) = 0;
 
     void startAlertTask(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {

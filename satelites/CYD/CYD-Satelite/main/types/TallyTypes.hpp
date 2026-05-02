@@ -24,3 +24,4 @@ enum class DeviceAlertTarget {
     OPERATOR = 1,
     TALENT = 2,
 };
+
