@@ -4,6 +4,8 @@ idf_component_register(
         "consumer/IConsumer.hpp"
         "consumer/SimpleRGBConsumer.hpp"
         "consumer/WS2812Consumer.hpp"
+        "beaconConnection/IBeaconConnection.hpp"
+        "beaconConnection/TcpMqttBeaconConnection.hpp"
         "config.cpp"
         "led_controller.cpp"
         "led_layout.cpp"
