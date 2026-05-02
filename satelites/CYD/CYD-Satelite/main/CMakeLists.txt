@@ -1,7 +1,9 @@
 idf_component_register(
     SRCS
         "main.cpp"
+        "consumer/IConsumer.hpp"
         "consumer/SimpleRGBConsumer.hpp"
+        "consumer/WS2812Consumer.hpp"
         "config.cpp"
         "led_controller.cpp"
         "led_layout.cpp"
