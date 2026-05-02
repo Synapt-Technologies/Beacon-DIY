@@ -5,7 +5,6 @@
 #include "esp_log.h"
 #include <cstring>
 #include <cstdio>
-#include <functional>
 
 class TcpMqttBeaconConnection : public IBeaconConnection {
 public:
@@ -38,81 +37,64 @@ public:
 
         esp_mqtt_client_stop(_client);
         esp_mqtt_client_destroy(_client);
-        _client    = nullptr;
-        _connected = false;
-        _infoSub   = {};
-        _tallySub  = {};
-        _alertSub  = {};
+        _client         = nullptr;
+        _connected      = false;
+        _tallyTopic[0]  = '\0';
+        _alertTopic[0]  = '\0';
     }
 
     void setTallyCallback(TallyCb cb) override { _tallyCb = cb; }
     void setAlertCallback(AlertCb cb) override { _alertCb = cb; }
 
 private:
-    static constexpr char TAG[] = "TcpMqtt";
+    static constexpr char TAG[]       = "TcpMqtt";
+    static constexpr char _infoTopic[] = "system/info";
 
-    struct Subscription {
-        char topic[128] = {};
-        std::function<void(const char*, int)> cb;
-    };
-
-    char                     _url[256] = {};
-    esp_mqtt_client_handle_t _client   = nullptr;
-
-    // TODO is this struct needed? Topics do not really change, or need to be stored.
-    Subscription _infoSub;
-    Subscription _tallySub;
-    Subscription _alertSub;
+    char                     _url[256]        = {};
+    char                     _tallyTopic[128] = {};
+    char                     _alertTopic[128] = {};
+    esp_mqtt_client_handle_t _client          = nullptr;
 
     void updateSubscriptions() override {
         if (!_client || !_connected) return;
 
         clearSubscriptions();
 
-        char tallyTopic[128];
-        char alertTopic[128];
-        static constexpr char infoTopic[] = "system/info";
+        snprintf(_tallyTopic, sizeof(_tallyTopic), "tally/device/%s/%s", _device, _consumer);
+        snprintf(_alertTopic, sizeof(_alertTopic), "tally/device/%s/%s/alert", _device, _consumer);
 
-        snprintf(tallyTopic, sizeof(tallyTopic), "tally/device/%s/%s", _device, _consumer);
-        snprintf(alertTopic, sizeof(alertTopic), "tally/device/%s/%s/alert", _device, _consumer);
-
-        strlcpy(_infoSub.topic, infoTopic, sizeof(_infoSub.topic));
-        _infoSub.cb = [this](const char* d, int l) { onGlobalInfo(d, l); };
-        esp_mqtt_client_subscribe(_client, _infoSub.topic, 0);
-        ESP_LOGI(TAG, "Subscribed to %s", _infoSub.topic);
+        if (esp_mqtt_client_subscribe(_client, _infoTopic, 0) < 0)
+            ESP_LOGW(TAG, "Failed to subscribe to %s", _infoTopic);
+        else
+            ESP_LOGI(TAG, "Subscribed to %s", _infoTopic);
 
         if (_tallyCb) {
-            strlcpy(_tallySub.topic, tallyTopic, sizeof(_tallySub.topic));
-            _tallySub.cb = [this](const char* d, int l) { onTally(d, l); };
-            esp_mqtt_client_subscribe(_client, _tallySub.topic, 0);
-            ESP_LOGI(TAG, "Subscribed to %s", _tallySub.topic);
+            if (esp_mqtt_client_subscribe(_client, _tallyTopic, 0) < 0)
+                ESP_LOGW(TAG, "Failed to subscribe to %s", _tallyTopic);
+            else
+                ESP_LOGI(TAG, "Subscribed to %s", _tallyTopic);
         }
 
         if (_alertCb) {
-            strlcpy(_alertSub.topic, alertTopic, sizeof(_alertSub.topic));
-            _alertSub.cb = [this](const char* d, int l) { onAlert(d, l); };
-            esp_mqtt_client_subscribe(_client, _alertSub.topic, 0);
-            ESP_LOGI(TAG, "Subscribed to %s", _alertSub.topic);
+            if (esp_mqtt_client_subscribe(_client, _alertTopic, 0) < 0)
+                ESP_LOGW(TAG, "Failed to subscribe to %s", _alertTopic);
+            else
+                ESP_LOGI(TAG, "Subscribed to %s", _alertTopic);
         }
     }
 
     void clearSubscriptions() override {
         if (!_client) return;
 
-        if (_infoSub.topic[0]) {
-            esp_mqtt_client_unsubscribe(_client, _infoSub.topic);
-            _infoSub = {};
-            ESP_LOGI(TAG, "Unsubscribed from info topic");
+        esp_mqtt_client_unsubscribe(_client, _infoTopic);
+
+        if (_tallyTopic[0]) {
+            esp_mqtt_client_unsubscribe(_client, _tallyTopic);
+            _tallyTopic[0] = '\0';
         }
-        if (_tallySub.topic[0]) {
-            esp_mqtt_client_unsubscribe(_client, _tallySub.topic);
-            _tallySub = {};
-            ESP_LOGI(TAG, "Unsubscribed from tally topic");
-        }
-        if (_alertSub.topic[0]) {
-            esp_mqtt_client_unsubscribe(_client, _alertSub.topic);
-            _alertSub = {};
-            ESP_LOGI(TAG, "Unsubscribed from alert topic");
+        if (_alertTopic[0]) {
+            esp_mqtt_client_unsubscribe(_client, _alertTopic);
+            _alertTopic[0] = '\0';
         }
     }
 
@@ -140,18 +122,17 @@ private:
     }
 
     void handleData(esp_mqtt_event_handle_t event) {
-        auto matches = [&](const Subscription& sub) {
-            return sub.topic[0] && sub.cb &&
-                   static_cast<int>(strlen(sub.topic)) == event->topic_len &&
-                   strncmp(event->topic, sub.topic, event->topic_len) == 0;
+        auto matches = [&](const char* topic) {
+            return static_cast<int>(strlen(topic)) == event->topic_len &&
+                   strncmp(event->topic, topic, event->topic_len) == 0;
         };
 
-        if      (matches(_infoSub))  _infoSub.cb(event->data, event->data_len);
-        else if (matches(_tallySub)) _tallySub.cb(event->data, event->data_len);
-        else if (matches(_alertSub)) _alertSub.cb(event->data, event->data_len);
+        if      (matches(_tallyTopic)) onTally(event->data, event->data_len);
+        else if (matches(_alertTopic)) onAlert(event->data, event->data_len);
+        else if (matches(_infoTopic))  onGlobalInfo(event->data, event->data_len);
     }
 
-    void onGlobalInfo(const char* data, int len) {
+    void onGlobalInfo(const char* data, int len) { // TODO add Beacon info parsing
         _lastKeepAlive = xTaskGetTickCount();
     }
 
@@ -207,10 +188,14 @@ private:
         for (int i = 0; i <= len - keyLen; i++) {
             if (strncmp(data + i, search, keyLen) == 0) {
                 const char* p = data + i + keyLen;
-                while (*p == ' ') p++;
+                while (p < data + len && *p == ' ') p++;
+                int remaining = static_cast<int>(data + len - p);
+                char numBuf[16] = {};
+                int copyLen = remaining < (int)sizeof(numBuf) - 1 ? remaining : (int)sizeof(numBuf) - 1;
+                strncpy(numBuf, p, copyLen);
                 char* end;
-                long val = strtol(p, &end, 10);
-                if (end != p) return static_cast<int>(val);
+                long val = strtol(numBuf, &end, 10);
+                if (end != numBuf) return static_cast<int>(val);
             }
         }
         return defaultVal;
