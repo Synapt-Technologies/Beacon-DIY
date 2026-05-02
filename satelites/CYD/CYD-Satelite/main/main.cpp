@@ -197,6 +197,7 @@ static void beacon_mqtt_task(void *arg)
 
     esp_mqtt_client_config_t mqtt_cfg = {};
     mqtt_cfg.broker.address.uri = BROKER_URL;
+    mqtt_cfg.task.priority = 18; // match lwIP task priority so we're scheduled immediately on receive
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
