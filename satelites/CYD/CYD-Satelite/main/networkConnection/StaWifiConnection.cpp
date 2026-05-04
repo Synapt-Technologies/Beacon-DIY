@@ -12,7 +12,7 @@ void StaWifiConnection::start()
     if (_staNetif) return; // guard against double-call
 
     _staNetif = esp_netif_create_default_wifi_sta();
-    _apNetif  = esp_netif_create_default_wifi_ap(); // created once, reused by startAp/stopAp
+    _apNetif  = esp_netif_create_default_wifi_ap();
 
     wifi_init_config_t initCfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&initCfg));
@@ -20,16 +20,21 @@ void StaWifiConnection::start()
     esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,    eventHandler, this);
     esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, eventHandler, this);
 
-    // Start in APSTA so we never need to switch modes from within an event handler
-    // (calling esp_wifi_set_mode() from a WiFi callback crashes via ppTask → esp_event_post with NULL mutex)
+    // Build AP config. All WiFi config must happen before esp_wifi_start() —
+    // calling esp_wifi_set_config / esp_wifi_set_mode from inside a WiFi event
+    // callback causes ppTask to re-enter esp_event_post, which crashes in IDF v6.
+    char apSsid[32] = {};
+    buildApSsid(apSsid, sizeof(apSsid), _deviceType);
+
+    wifi_config_t apCfg = {};
+    strlcpy((char*)apCfg.ap.ssid, apSsid, sizeof(apCfg.ap.ssid));
+    apCfg.ap.ssid_len       = static_cast<uint8_t>(strlen(apSsid));
+    apCfg.ap.max_connection = 4;
+    apCfg.ap.authmode       = WIFI_AUTH_OPEN;
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &apCfg));
     applyStaConfig();
-    {
-        wifi_config_t apCfg = {};
-        apCfg.ap.ssid_hidden    = 1;
-        apCfg.ap.max_connection = 0;
-        esp_wifi_set_config(WIFI_IF_AP, &apCfg);
-    }
     ESP_ERROR_CHECK(esp_wifi_start());
     esp_wifi_set_ps(WIFI_PS_NONE);
 
@@ -38,8 +43,13 @@ void StaWifiConnection::start()
 
     _running    = true;
     _retryCount = 0;
+    _apActive   = true;
 
-    ESP_LOGI(TAG, "Started");
+    esp_netif_ip_info_t ipInfo = {};
+    esp_netif_get_ip_info(_apNetif, &ipInfo);
+    _apIp = ipInfo.ip;
+
+    ESP_LOGI(TAG, "Started. AP: %s", apSsid);
 }
 
 void StaWifiConnection::stop()
@@ -114,52 +124,28 @@ int StaWifiConnection::getScanResults(WifiScanResult* out, int maxCount)
 
 // ── IWifiConnection — AP ──────────────────────────────────────────────────────
 
-void StaWifiConnection::startAp(const char* namePrefix, const char* password)
+// startAp / stopAp are intentionally no-ops after start(): the AP is configured
+// once before esp_wifi_start() and stays running. They only update the logical
+// _apActive flag so the orchestrator / HTTP layer can read isApActive() correctly.
+// Calling esp_wifi_set_config from inside a WiFi event handler crashes in IDF v6
+// (ppTask re-enters esp_event_post with a NULL event-loop mutex).
+
+void StaWifiConnection::startAp(const char* /*namePrefix*/, const char* /*password*/)
 {
-    if (!_staNetif) {
-        ESP_LOGE(TAG, "startAp() called before start()");
-        return;
-    }
-
-    const char* apPrefix = (namePrefix && namePrefix[0]) ? namePrefix : _deviceType;
-    char ssid[32] = {};
-    buildApSsid(ssid, sizeof(ssid), apPrefix);
-
-    wifi_config_t apCfg = {};
-    strlcpy((char*)apCfg.ap.ssid, ssid, sizeof(apCfg.ap.ssid));
-    apCfg.ap.ssid_len       = static_cast<uint8_t>(strlen(ssid));
-    apCfg.ap.max_connection = 4;
-
-    if (password && password[0]) {
-        strlcpy((char*)apCfg.ap.password, password, sizeof(apCfg.ap.password));
-        apCfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
-    } else {
-        apCfg.ap.authmode = WIFI_AUTH_OPEN;
-    }
-
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &apCfg));
-
+    if (!_staNetif) return;
+    _apActive = true;
     esp_netif_ip_info_t ipInfo = {};
     esp_netif_get_ip_info(_apNetif, &ipInfo);
-    _apIp    = ipInfo.ip;
-    _apActive = true;
-
-    ESP_LOGI(TAG, "AP started: %s", ssid);
+    _apIp = ipInfo.ip;
+    ESP_LOGI(TAG, "AP active");
 }
 
 void StaWifiConnection::stopAp()
 {
     if (!_apActive) return;
-
-    // Hide the AP rather than switching mode (mode switching from an event handler is unsafe)
-    wifi_config_t hiddenCfg = {};
-    hiddenCfg.ap.ssid_hidden    = 1;
-    hiddenCfg.ap.max_connection = 0;
-    esp_wifi_set_config(WIFI_IF_AP, &hiddenCfg);
     _apActive = false;
     _apIp     = {};
-
-    ESP_LOGI(TAG, "AP stopped");
+    ESP_LOGI(TAG, "AP inactive");
 }
 
 bool           StaWifiConnection::isApActive() const { return _apActive; }
@@ -187,11 +173,10 @@ void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
     if (base == WIFI_EVENT) {
         switch (id) {
         case WIFI_EVENT_STA_START:
-            startAp();
-
+            _apActive = true;
             if (_ssid[0]) {
                 esp_wifi_connect();
-                _status = NetworkStatus::CONNECTING;                
+                _status = NetworkStatus::CONNECTING;
                 fireCallback(NetworkStatus::CONNECTING);
             } else {
                 _status = NetworkStatus::DISCONNECTED;
@@ -200,24 +185,22 @@ void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
             break;
 
         case WIFI_EVENT_STA_DISCONNECTED: {
-            _ip     = {};
-            _status = NetworkStatus::DISCONNECTED;
-
-            startAp();
+            _ip       = {};
+            _status   = NetworkStatus::DISCONNECTED;
+            _apActive = true;
 
             fireCallback(NetworkStatus::DISCONNECTED);
 
             auto* e = static_cast<wifi_event_sta_disconnected_t*>(data);
             ESP_LOGW(TAG, "Disconnected reason=%d", e->reason);
 
-            // Don't retry on intentional disconnect
             if (_ssid[0] && e->reason != WIFI_REASON_ASSOC_LEAVE) {
                 _status = NetworkStatus::CONNECTING;
                 fireCallback(NetworkStatus::CONNECTING);
                 if (_retryCount++ == 0) {
-                    esp_wifi_connect(); // first failure: reconnect immediately
+                    esp_wifi_connect();
                 } else {
-                    xTimerStart(_reconnectTimer, 0); // subsequent: short delay
+                    xTimerStart(_reconnectTimer, 0);
                 }
             }
             break;
@@ -247,8 +230,7 @@ void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
         _ip         = e->ip_info.ip;
         _retryCount = 0;
         _status     = NetworkStatus::CONNECTED;
-
-        stopAp();
+        _apActive   = false;
 
         fireCallback(NetworkStatus::CONNECTED);
 
