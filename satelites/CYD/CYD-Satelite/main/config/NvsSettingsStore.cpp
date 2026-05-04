@@ -1,8 +1,15 @@
 #include "config/NvsSettingsStore.hpp"
 #include "nvs.h"
 #include "esp_log.h"
+#include <cstdio>
 
 static constexpr char TAG[] = "NvsSettingsStore";
+
+static const char* make_key(char* buf, size_t len, const char* prefix, size_t index)
+{
+    std::snprintf(buf, len, "%s%u", prefix, static_cast<unsigned>(index));
+    return buf;
+}
 
 bool NvsSettingsStore::load(Settings& out)
 {
@@ -23,16 +30,17 @@ bool NvsSettingsStore::load(Settings& out)
     str("deviceId",    out.beacon.deviceId,     sizeof(out.beacon.deviceId));
     str("deviceName",  out.deviceName,          sizeof(out.deviceName));
     
+    char key[32];
     for (int i = 0; i < 5; i++) {
         uint8_t brightness = out.display.brightness[i];
-        if (nvs_get_u8(h, make_key("brightness_", i), &brightness) == ESP_OK) {
+        if (nvs_get_u8(h, make_key(key, sizeof(key), "brightness_", static_cast<size_t>(i)), &brightness) == ESP_OK) {
             out.display.brightness[i] = brightness;
         }
     }    
 
     for (int i = 0; i < 5; i++) {
         uint8_t raw = static_cast<uint8_t>(out.display.alertTarget[i]);
-        if (nvs_get_u8(h, make_key("alertTarget_", i), &raw) == ESP_OK) {
+        if (nvs_get_u8(h, make_key(key, sizeof(key), "alertTarget_", static_cast<size_t>(i)), &raw) == ESP_OK) {
             out.display.alertTarget[i] = static_cast<DeviceAlertTarget>(raw);
         }
     }
@@ -56,12 +64,13 @@ bool NvsSettingsStore::save(const Settings& in)
     if (err == ESP_OK) err = nvs_set_str(h, "deviceId",   in.beacon.deviceId);
     if (err == ESP_OK) err = nvs_set_str(h, "deviceName", in.deviceName);
 
+    char key[32];
     for (int i = 0; i < 5 && err == ESP_OK; i++) {
-        err = nvs_set_u8(h, ("brightness_" + std::to_string(i)).c_str(), in.display.brightness[i]);
+        err = nvs_set_u8(h, make_key(key, sizeof(key), "brightness_", static_cast<size_t>(i)), in.display.brightness[i]);
     }
 
     for (int i = 0; i < 5 && err == ESP_OK; i++) {
-        err = nvs_set_u8(h, ("alertTarget_" + std::to_string(i)).c_str(), static_cast<uint8_t>(in.display.alertTarget[i]));
+        err = nvs_set_u8(h, make_key(key, sizeof(key), "alertTarget_", static_cast<size_t>(i)), static_cast<uint8_t>(in.display.alertTarget[i]));
     }
 
     if (err == ESP_OK) err = nvs_commit(h);
