@@ -143,8 +143,11 @@ private:
         if (!_tallyCb)
             return;
 
-        int ss = extractInt(data, len, "ss", -1);
-        if (ss < 0) {
+        TallyState ss = TallyState::NONE;
+        int rawSs = extractInt(data, len, "ss", -1);
+        if (rawSs >= 0) {
+            ss = static_cast<TallyState>(rawSs);
+        } else {
             char state[16] = {};
             const char* key = "\"state\":\"";
             for (int i = 0; i <= len - 9; i++) {
@@ -160,11 +163,10 @@ private:
             else if (strcmp(state, "DANGER")  == 0) ss = TallyState::DANGER;
             else if (strcmp(state, "PREVIEW") == 0) ss = TallyState::PREVIEW;
             else if (strcmp(state, "WARNING") == 0) ss = TallyState::WARNING;
-            else                                    ss = TallyState::NONE;
         }
 
-        ESP_LOGI(TAG, "Tally ss=%d", ss);
-        _tallyCb(static_cast<TallyState>(ss));
+        ESP_LOGI(TAG, "Tally ss=%d", static_cast<int>(ss));
+        _tallyCb(ss);
     }
 
     void onAlert(const char* data, int len) {
