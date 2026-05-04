@@ -16,6 +16,16 @@
 #include "web_server.h"
 #include "beacon_app.h"
 
+#include "config/NvsSettingsStore.hpp"
+#include "config/DeviceProfile.hpp"
+#include "networkConnection/StaWifiConnection.hpp"
+#include "beaconConnection/TcpMqttBeaconConnection.hpp"
+#include "consumer/SimpleRGBConsumer.hpp"
+#include "consumer/WS2812Consumer.hpp"
+#include "httpServer/EspHttpServer.hpp"
+
+#include "orchestrator/SateliteOrchestrator.hpp"
+
 // ── Pin / hardware constants ──────────────────────────────────────────────────
 
 #define FIX_LED_R_GPIO          GPIO_NUM_4
@@ -47,13 +57,13 @@ static led_strip_handle_t createLedStrip()
 
 // ── LED layout (static to avoid stack overflow) ────────────────────────────────
 
-static LedLayout g_layout;
+// static LedLayout g_layout;
 
 extern "C" void app_main()
 {
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    // Erase and reinit NVS if the partition is full or the layout changed
+    // // Erase and reinit NVS if the partition is full or the layout changed
     esp_err_t nvs_err = nvs_flash_init();
     if (nvs_err == ESP_ERR_NVS_NO_FREE_PAGES || nvs_err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -63,23 +73,47 @@ extern "C" void app_main()
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    // All objects on heap — WifiManager alone is ~1.4 KB due to wifi_ap_record_t[16]
-    auto* config = new NvsConfig();
-    config->load();
+    ISettingsStore* settingsStore = new NvsSettingsStore();
+    DeviceProfile profile = DeviceProfile{
+        .deviceType = DeviceType::SINGLE_TOPIC,
+        .model = "CYD Satellite",
+        .consumerCount = 2,
+    };
+    INetworkConnection* network = new StaWifiConnection("CYD_Satellite");
 
-    g_layout.parse(config->get().led_layout);
+    const char* mqttUrl = "mqtt://192.168.10.142";
 
-    led_strip_handle_t strip = createLedStrip();
-    auto* leds = new CompositeLedController(strip,
-                                            FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO,
-                                            ADD_LED_STRIP_LED_NUMBER,
-                                            g_layout,
-                                            config->get().led_brightness);
-    auto* wifi = new WifiManager(config->get());
-    auto* mqtt = new MqttManager();
-    auto* web  = new WebServer(*config, *wifi, *mqtt);
-    auto* app  = new BeaconApp(*leds, *config, *wifi, *mqtt, *web);
-    web->setBeaconApp(app);
+    IBeaconConnection* beacon = new TcpMqttBeaconConnection(mqttUrl);
 
-    app->run(); // spawns tasks then deletes the main task
+    IConsumer* consumer1 = new SimpleRGBConsumer(FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO, DeviceAlertTarget::OPERATOR);
+    IConsumer* consumer2 = new WS2812Consumer(createLedStrip(), 21, DeviceAlertTarget::ALL);
+
+    IConsumer* consumers[] = { consumer1, consumer2 };
+
+    EspHttpServer httpServer = EspHttpServer();
+
+    SateliteOrchestrator orchestrator = SateliteOrchestrator(*settingsStore, profile, *network, *beacon, consumers, profile.consumerCount, httpServer);
+    orchestrator.start();
+
+    // // All objects on heap — WifiManager alone is ~1.4 KB due to wifi_ap_record_t[16]
+    // auto* config = new NvsConfig();
+    // config->load();
+
+    // g_layout.parse(config->get().led_layout);
+
+    // led_strip_handle_t strip = createLedStrip();
+    // auto* leds = new CompositeLedController(strip,
+    //                                         FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO,
+    //                                         ADD_LED_STRIP_LED_NUMBER,
+    //                                         g_layout,
+    //                                         config->get().led_brightness);
+    // auto* wifi = new WifiManager(config->get());
+    // auto* mqtt = new MqttManager();
+    // auto* web  = new WebServer(*config, *wifi, *mqtt);
+    // auto* app  = new BeaconApp(*leds, *config, *wifi, *mqtt, *web);
+    // web->setBeaconApp(app);
+
+    // app->run(); // spawns tasks then deletes the main task
+
+    
 }
