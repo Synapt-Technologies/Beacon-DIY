@@ -95,6 +95,12 @@ extern "C" void app_main()
     SateliteOrchestrator orchestrator = SateliteOrchestrator(*settingsStore, profile, *network, *beacon, consumers, profile.consumerCount, httpServer);
     orchestrator.start();
 
+    // Keep app_main alive so stack-allocated runtime objects (orchestrator/http server)
+    // remain valid for the lifetime of the firmware.
+    while (true) {
+        vTaskDelay(portMAX_DELAY);
+    }
+
     // // All objects on heap — WifiManager alone is ~1.4 KB due to wifi_ap_record_t[16]
     // auto* config = new NvsConfig();
     // config->load();
