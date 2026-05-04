@@ -27,13 +27,13 @@ void EspHttpServer::stop()
 bool EspHttpServer::isRunning() const { return _server != nullptr; }
 
 void EspHttpServer::registerHandler(const char* uri, httpd_method_t method,
-                                    httpd_handler_t handler, void* ctx)
+                                    httpd_handle_t handle, void* ctx)
 {
     if (!_server) {
         ESP_LOGW(TAG, "registerHandler() called before start()");
         return;
     }
-    httpd_uri_t u = { uri, method, handler, ctx };
+    httpd_uri_t u = { uri, method, handle, ctx };
     if (httpd_register_uri_handler(_server, &u) != ESP_OK)
         ESP_LOGE(TAG, "Failed to register: %s", uri);
 }

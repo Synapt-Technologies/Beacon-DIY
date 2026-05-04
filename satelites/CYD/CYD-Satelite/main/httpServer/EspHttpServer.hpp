@@ -12,10 +12,10 @@ public:
     void stop();
     bool isRunning() const;
 
-    void registerHandler(const char*    uri,
-                         httpd_method_t  method,
-                         httpd_handler_t handler,
-                         void*           ctx = nullptr);
+    void registerHandler(const char*        uri,
+                         httpd_method_t     method,
+                         httpd_handle_t     handler,
+                         void*              ctx = nullptr);
 
 private:
     static constexpr char TAG[]             = "EspHttpServer";
