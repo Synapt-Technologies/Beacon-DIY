@@ -27,11 +27,8 @@ public:
         , _consumerCount(consumerCount < MAX_CONSUMERS ? consumerCount : MAX_CONSUMERS)
         , _http(http)
     {
-        _config.load();
-
         _config = new Config(store);
-
-        // Arrays cannot be initialized in the member initializer list in C++
+        
         memset(_consumers, 0, sizeof(_consumers));
         memcpy(_consumers, consumers, _consumerCount * sizeof(IConsumer*));
     }
