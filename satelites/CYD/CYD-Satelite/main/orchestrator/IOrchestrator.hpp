@@ -20,7 +20,7 @@ public:
                     IConsumer**          consumers,
                     uint8_t              consumerCount,
                     EspHttpServer&       http
-                )
+                ) :
         , _profile(profile)
         , _network(network)
         , _beacon(beacon)
