@@ -60,8 +60,8 @@ private:
 
         clearSubscriptions();
 
-        snprintf(_tallyTopic, sizeof(_tallyTopic), "tally/device/%s/%s", _device, _consumer);
-        snprintf(_alertTopic, sizeof(_alertTopic), "tally/device/%s/%s/alert", _device, _consumer);
+        snprintf(_tallyTopic, sizeof(_tallyTopic), "tally/device/%s/%s", _consumer, _device);
+        snprintf(_alertTopic, sizeof(_alertTopic), "tally/device/%s/%s/alert", _consumer, _device);
 
         if (esp_mqtt_client_subscribe(_client, _infoTopic, 0) < 0)
             ESP_LOGW(TAG, "Failed to subscribe to %s", _infoTopic);
@@ -129,6 +129,10 @@ private:
             return static_cast<int>(strlen(topic)) == event->topic_len &&
                    strncmp(event->topic, topic, event->topic_len) == 0;
         };
+
+        ESP_LOGI(TAG, "Received data on topic %.*s: %.*s",
+                 event->topic_len, event->topic,
+                 event->data_len, event->data);
 
         if      (matches(_tallyTopic)) onTally(event->data, event->data_len);
         else if (matches(_alertTopic)) onAlert(event->data, event->data_len);
