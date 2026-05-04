@@ -21,9 +21,9 @@ public:
     }
     ~SimpleRGBConsumer() {
 
-        gpio_set_direction(_rPin, GPIO_MODE_DEF_DISABLE);
-        gpio_set_direction(_gPin, GPIO_MODE_DEF_DISABLE);
-        gpio_set_direction(_bPin, GPIO_MODE_DEF_DISABLE);
+        gpio_set_direction(_rPin, GPIO_MODE_DISABLE);
+        gpio_set_direction(_gPin, GPIO_MODE_DISABLE);
+        gpio_set_direction(_bPin, GPIO_MODE_DISABLE);
     }
 
 private:
