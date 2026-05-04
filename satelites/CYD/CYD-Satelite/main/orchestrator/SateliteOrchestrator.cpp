@@ -27,9 +27,25 @@ void SateliteOrchestrator::start()
         [this](NetworkStatus s, esp_ip4_addr_t ip) { onWifiStatus(s, ip); }
     ); 
 
+    // TODO Init inside of ochestrator? Probably yes because the callbacks.
+    // TODO Check order.
+    _network.start();
+    _beacon.start();
+
     _config.load();
 
+    _http.start();
+    registerHttpHandlers(); // TODO Build context.
+
     ESP_LOGI(TAG, "Started");
+}
+
+void SateliteOrchestrator::stop()
+{
+    _http.stop();
+    _beacon.stop();
+    _network.stop();
+    ESP_LOGI(TAG, "Stopped");
 }
 
 // ? Config callbacks
@@ -104,4 +120,21 @@ void SateliteOrchestrator::onWifiStatus(NetworkStatus status, esp_ip4_addr_t ip)
     _networkStatus = status;
     this->ip = ip;
     // TODO Check if state changes need to be handled by the orchestrator. E.g. Beacon connection.
+}
+
+
+// ? HTTP
+// TODO Handled here?
+
+void SateliteOrchestrator::registerHttpHandlers()
+{
+    _http.registerHandler("/",           HTTP_GET,  HttpHandlers::handleRoot,      nullptr);
+    _http.registerHandler("/ui.css",     HTTP_GET,  HttpHandlers::handleCss,       nullptr);
+    _http.registerHandler("/ui.js",      HTTP_GET,  HttpHandlers::handleJs,        nullptr);
+    _http.registerHandler("/api/device", HTTP_GET,  HttpHandlers::handleGetDevice, &_httpCtx);
+    _http.registerHandler("/api/config", HTTP_GET,  HttpHandlers::handleGetConfig, &_httpCtx);
+    _http.registerHandler("/api/config", HTTP_POST, HttpHandlers::handleSetConfig, &_httpCtx);
+    _http.registerHandler("/api/status", HTTP_GET,  HttpHandlers::handleGetStatus, &_httpCtx);
+    _http.registerHandler("/api/scan",   HTTP_GET,  HttpHandlers::handleGetScan,   &_httpCtx);
+    _http.registerHandler("/api/reboot", HTTP_POST, HttpHandlers::handleReboot,    nullptr);
 }
