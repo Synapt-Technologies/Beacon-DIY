@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "cJSON.h"
 #include <cstring>
+#include <cstdlib>
 
 static constexpr char TAG[] = "HttpHandlers";
 
@@ -126,13 +127,26 @@ esp_err_t HttpHandlers::handleSetConfig(httpd_req_t* req)
 {
     auto* ctx = static_cast<HttpCtx*>(req->user_ctx);
 
-    char body[2048] = {};
-    if (readBody(req, body, sizeof(body)) <= 0) {
+    if (req->content_len <= 0 || req->content_len > 4096) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+        return ESP_FAIL;
+    }
+
+    char* body = static_cast<char*>(malloc(req->content_len + 1));
+    if (!body) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+        return ESP_FAIL;
+    }
+
+    int received = readBody(req, body, req->content_len + 1);
+    if (received <= 0) {
+        free(body);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
         return ESP_FAIL;
     }
 
     cJSON* root = cJSON_Parse(body);
+    free(body);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
         return ESP_FAIL;
@@ -258,7 +272,13 @@ esp_err_t HttpHandlers::handleGetScan(httpd_req_t* req)
     cJSON* resultsJson = cJSON_AddArrayToObject(root, "results");
 
     if (wifi) {
-        WifiScanResult results[32];
+        auto* results = static_cast<WifiScanResult*>(malloc(32 * sizeof(WifiScanResult)));
+        if (!results) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Out of memory");
+            return ESP_FAIL;
+        }
+
         int count = wifi->getScanResults(results, 32);
         for (int i = 0; i < count; i++) {
             if (results[i].ssid[0] == '\0') continue;
@@ -267,6 +287,7 @@ esp_err_t HttpHandlers::handleGetScan(httpd_req_t* req)
             cJSON_AddNumberToObject(entry, "rssi", results[i].rssi);
             cJSON_AddItemToArray(resultsJson, entry);
         }
+        free(results);
     }
     return sendJson(req, root);
 }
