@@ -7,7 +7,6 @@
 
 class StaWifiConnection : public IWifiConnection {
 public:
-    StaWifiConnection()  = default;
     ~StaWifiConnection() { stop(); }
 
     // INetworkConnection
@@ -24,7 +23,7 @@ public:
     int    getScanResults(WifiScanResult* out, int maxCount)     override;
 
     // IWifiConnection — AP
-    void           startAp(const char* namePrefix, const char* password = nullptr) override;
+    void           startAp(const char* namePrefix = nullptr, const char* password = nullptr) override;
     void           stopAp()                                     override;
     bool           isApActive()                           const override;
     esp_ip4_addr_t getApIp()                              const override;

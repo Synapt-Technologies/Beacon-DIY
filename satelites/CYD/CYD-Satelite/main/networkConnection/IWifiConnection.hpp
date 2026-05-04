@@ -22,8 +22,9 @@ public:
     virtual int    getScanResults(WifiScanResult* out, int maxCount) = 0;
 
     // AP
-    virtual void           startAp(const char* namePrefix, const char* password = nullptr) = 0;
-    virtual void           stopAp()                                                   = 0;
-    virtual bool           isApActive()                                         const = 0;
-    virtual esp_ip4_addr_t getApIp()                                            const = 0;
+    virtual void           startAp(const char* namePrefix = nullptr,
+                                   const char* password = nullptr) = 0;
+    virtual void           stopAp()                 = 0;
+    virtual bool           isApActive()       const = 0;
+    virtual esp_ip4_addr_t getApIp()          const = 0;
 };

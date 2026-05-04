@@ -113,8 +113,9 @@ void StaWifiConnection::startAp(const char* namePrefix, const char* password)
         return;
     }
 
+    const char* apPrefix = (namePrefix && namePrefix[0]) ? namePrefix : _deviceType;
     char ssid[32] = {};
-    buildApSsid(ssid, sizeof(ssid), namePrefix);
+    buildApSsid(ssid, sizeof(ssid), apPrefix);
 
     wifi_config_t apCfg = {};
     strlcpy((char*)apCfg.ap.ssid, ssid, sizeof(apCfg.ap.ssid));
@@ -176,16 +177,24 @@ void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
     if (base == WIFI_EVENT) {
         switch (id) {
         case WIFI_EVENT_STA_START:
+            startAp();
+
             if (_ssid[0]) {
                 esp_wifi_connect();
-                _status = NetworkStatus::CONNECTING;
+                _status = NetworkStatus::CONNECTING;                
                 fireCallback(NetworkStatus::CONNECTING);
+            } else {
+                _status = NetworkStatus::DISCONNECTED;
+                fireCallback(NetworkStatus::DISCONNECTED);
             }
             break;
 
         case WIFI_EVENT_STA_DISCONNECTED: {
             _ip     = {};
             _status = NetworkStatus::DISCONNECTED;
+
+            startAp();
+
             fireCallback(NetworkStatus::DISCONNECTED);
 
             auto* e = static_cast<wifi_event_sta_disconnected_t*>(data);
@@ -228,7 +237,11 @@ void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
         _ip         = e->ip_info.ip;
         _retryCount = 0;
         _status     = NetworkStatus::CONNECTED;
+
+        stopAp();
+
         fireCallback(NetworkStatus::CONNECTED);
+
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&_ip));
     }
 }

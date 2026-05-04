@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <stdint.h>
+#include <cstring>
 #include "esp_netif_types.h"
 
 enum class NetworkStatus {
@@ -15,6 +16,10 @@ class INetworkConnection {
 public:
     using ConnectionCb = std::function<void(NetworkStatus status, esp_ip4_addr_t ip)>;
 
+    INetworkConnection(const char* deviceType = "Beacon_Satellite") {
+        std::strncpy(_deviceType, deviceType, sizeof(_deviceType) - 1);
+        _deviceType[sizeof(_deviceType) - 1] = '\0';
+    }
     virtual ~INetworkConnection() = default;
 
     virtual void           start()                                      = 0;
@@ -26,6 +31,7 @@ public:
     bool isConnected() const { return getStatus() == NetworkStatus::CONNECTED; }
 
 protected:
+    char _deviceType[32] = "";
     NetworkStatus  _status = NetworkStatus::DISCONNECTED;
     esp_ip4_addr_t _ip     = {};
 };
