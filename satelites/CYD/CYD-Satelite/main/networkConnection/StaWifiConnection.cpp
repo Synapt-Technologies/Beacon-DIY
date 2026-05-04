@@ -255,7 +255,7 @@ void StaWifiConnection::applyStaConfig()
     wifi_config_t staCfg = {};
     strlcpy((char*)staCfg.sta.ssid,     _ssid, sizeof(staCfg.sta.ssid));
     strlcpy((char*)staCfg.sta.password, _pass, sizeof(staCfg.sta.password));
-    staCfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    staCfg.sta.threshold.authmode = _pass[0] ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
     staCfg.sta.scan_method        = WIFI_FAST_SCAN;
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &staCfg));
 }
