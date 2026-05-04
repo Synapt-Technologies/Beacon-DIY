@@ -53,7 +53,7 @@ void SateliteOrchestrator::stop()
 void SateliteOrchestrator::onNetworkChanged(const Settings::Network& s)
 {
     ESP_LOGI(TAG, "Network settings changed, reconfiguring WiFi");
-    _wifi.configure(s.ssid, s.password);
+    _network.configure(s.ssid, s.password);
     // _beacon.stop(); // TODO Check if needed.
 }
 
@@ -112,10 +112,10 @@ void SateliteOrchestrator::applyAlert(DeviceAlertAction action,
 }
 
 
-// ? Wifi Callbacks
+// ? Network Callbacks
 
 
-void SateliteOrchestrator::onWifiStatus(NetworkStatus status, esp_ip4_addr_t ip)
+void SateliteOrchestrator::onNetworkStatus(NetworkStatus status, esp_ip4_addr_t ip)
 {
     _networkStatus = status;
     this->ip = ip;
