@@ -31,18 +31,16 @@ bool NvsSettingsStore::load(Settings& out)
     str("deviceName",  out.deviceName,          sizeof(out.deviceName));
     
     char key[32];
-    for (int i = 0; i < 5; i++) {
-        uint8_t brightness = out.display.brightness[i];
-        if (nvs_get_u8(h, make_key(key, sizeof(key), "brightness_", static_cast<size_t>(i)), &brightness) == ESP_OK) {
+    for (int i = 0; i < (int)(sizeof(out.display.brightness) / sizeof(out.display.brightness[0])); i++) {
+        uint8_t brightness = 0;
+        if (nvs_get_u8(h, make_key(key, sizeof(key), "brightness_", static_cast<size_t>(i)), &brightness) == ESP_OK)
             out.display.brightness[i] = brightness;
-        }
-    }    
+    }
 
-    for (int i = 0; i < 5; i++) {
-        uint8_t raw = static_cast<uint8_t>(out.display.alertTarget[i]);
-        if (nvs_get_u8(h, make_key(key, sizeof(key), "alertTarget_", static_cast<size_t>(i)), &raw) == ESP_OK) {
+    for (int i = 0; i < (int)(sizeof(out.display.alertTarget) / sizeof(out.display.alertTarget[0])); i++) {
+        uint8_t raw = 0;
+        if (nvs_get_u8(h, make_key(key, sizeof(key), "alertTarget_", static_cast<size_t>(i)), &raw) == ESP_OK)
             out.display.alertTarget[i] = static_cast<DeviceAlertTarget>(raw);
-        }
     }
 
     nvs_close(h);
@@ -65,13 +63,11 @@ bool NvsSettingsStore::save(const Settings& in)
     if (err == ESP_OK) err = nvs_set_str(h, "deviceName", in.deviceName);
 
     char key[32];
-    for (int i = 0; i < 5 && err == ESP_OK; i++) {
+    for (int i = 0; i < (int)(sizeof(in.display.brightness) / sizeof(in.display.brightness[0])) && err == ESP_OK; i++)
         err = nvs_set_u8(h, make_key(key, sizeof(key), "brightness_", static_cast<size_t>(i)), in.display.brightness[i]);
-    }
 
-    for (int i = 0; i < 5 && err == ESP_OK; i++) {
+    for (int i = 0; i < (int)(sizeof(in.display.alertTarget) / sizeof(in.display.alertTarget[0])) && err == ESP_OK; i++)
         err = nvs_set_u8(h, make_key(key, sizeof(key), "alertTarget_", static_cast<size_t>(i)), static_cast<uint8_t>(in.display.alertTarget[i]));
-    }
 
     if (err == ESP_OK) err = nvs_commit(h);
 
