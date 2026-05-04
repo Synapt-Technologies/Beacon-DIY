@@ -1,6 +1,7 @@
 #include "orchestrator/SateliteOrchestrator.hpp"
 
 #include "esp_log.h"
+#include "esp_mac.h"
 #include <cstdio>
 #include <cstring>
 
@@ -24,7 +25,7 @@ void SateliteOrchestrator::start()
     );
 
     _network.setConnectionCallback( // TODO Check if needed. For the ui? Should it be stored in the INetworkConnection implementation?
-        [this](NetworkStatus s, esp_ip4_addr_t ip) { onWifiStatus(s, ip); }
+        [this](NetworkStatus s, esp_ip4_addr_t ip) { onNetworkStatus(s, ip); }
     ); 
 
     // TODO Init inside of ochestrator? Probably yes because the callbacks.
