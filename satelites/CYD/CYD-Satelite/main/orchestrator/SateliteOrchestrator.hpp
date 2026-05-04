@@ -22,4 +22,16 @@ public:
 private:
     static constexpr char TAG[]        = "SateliteOrch";
 
+    void onNetworkChanged(const Settings::Network& s);
+    void onBeaconChanged (const Settings::Beacon&  s);
+    void onDisplayChanged(const Settings::Display& s);
+
+    void onNetworkStatus(NetworkStatus status, esp_ip4_addr_t ip);
+
+    void applyTally(TallyState state);
+    void applyAlert(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout);
+    void applyDisplay(const Settings::Display& s);
+
+    void registerHttpHandlers();
+
 };
