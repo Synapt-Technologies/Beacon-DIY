@@ -1,4 +1,5 @@
 #include "httpServer/HttpHandlers.hpp"
+#include "networkConnection/IWifiConnection.hpp"
 #include "esp_log.h"
 #include "esp_system.h"
 #include "freertos/FreeRTOS.h"
@@ -216,13 +217,13 @@ esp_err_t HttpHandlers::handleGetStatus(httpd_req_t* req)
     auto* ctx = static_cast<HttpCtx*>(req->user_ctx);
 
     char ipStr[16] = "0.0.0.0";
-    if (ctx->wifi.isConnected()) {
-        esp_ip4_addr_t ip = ctx->wifi.getIp();
+    if (ctx->network.isConnected()) {
+        esp_ip4_addr_t ip = ctx->network.getIp();
         snprintf(ipStr, sizeof(ipStr), IPSTR, IP2STR(&ip));
     }
 
     cJSON* root = cJSON_CreateObject();
-    cJSON_AddBoolToObject  (root, "wifi",   ctx->wifi.isConnected());
+    cJSON_AddBoolToObject  (root, "wifi",   ctx->network.isConnected());
     cJSON_AddStringToObject(root, "ip",     ipStr);
     cJSON_AddBoolToObject  (root, "beacon", ctx->beacon.isConnected());
     return sendJson(req, root);
@@ -232,20 +233,21 @@ esp_err_t HttpHandlers::handleGetStatus(httpd_req_t* req)
 
 esp_err_t HttpHandlers::handleGetScan(httpd_req_t* req)
 {
-    auto* ctx = static_cast<HttpCtx*>(req->user_ctx);
-
-    WifiScanResult results[32];
-    int count = ctx->wifi.getScanResults(results, 32);
-
-    ctx->wifi.triggerScan(); // kick off a fresh scan for next request
+    auto* ctx  = static_cast<HttpCtx*>(req->user_ctx);
+    auto* wifi = dynamic_cast<IWifiConnection*>(&ctx->network);
 
     cJSON* root = cJSON_CreateArray();
-    for (int i = 0; i < count; i++) {
-        if (results[i].ssid[0] == '\0') continue;
-        cJSON* entry = cJSON_CreateObject();
-        cJSON_AddStringToObject(entry, "ssid", results[i].ssid);
-        cJSON_AddNumberToObject(entry, "rssi", results[i].rssi);
-        cJSON_AddItemToArray(root, entry);
+    if (wifi) {
+        WifiScanResult results[32];
+        int count = wifi->getScanResults(results, 32);
+        wifi->triggerScan(); // kick off a fresh scan for next request
+        for (int i = 0; i < count; i++) {
+            if (results[i].ssid[0] == '\0') continue;
+            cJSON* entry = cJSON_CreateObject();
+            cJSON_AddStringToObject(entry, "ssid", results[i].ssid);
+            cJSON_AddNumberToObject(entry, "rssi", results[i].rssi);
+            cJSON_AddItemToArray(root, entry);
+        }
     }
     return sendJson(req, root);
 }
