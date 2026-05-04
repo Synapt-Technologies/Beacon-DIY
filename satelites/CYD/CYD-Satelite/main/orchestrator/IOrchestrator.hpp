@@ -13,13 +13,14 @@ class IOrchestrator {
 public:
     static constexpr uint8_t MAX_CONSUMERS = 8;
     
-    IOrchestrator(ISettingsStore&      store,
-                                const DeviceProfile& profile,
-                                INetworkConnection&  network,
-                                IBeaconConnection&   beacon,
-                                IConsumer**          consumers,
-                                uint8_t              consumerCount,
-                                EspHttpServer&       http)
+    IOrchestrator(  ISettingsStore&      store,
+                    const DeviceProfile& profile,
+                    INetworkConnection&  network,
+                    IBeaconConnection&   beacon,
+                    IConsumer**          consumers,
+                    uint8_t              consumerCount,
+                    EspHttpServer&       http
+                )
         : _config(store)
         , _profile(profile)
         , _network(network)
