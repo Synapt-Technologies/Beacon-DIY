@@ -1,4 +1,5 @@
 #include "orchestrator/SateliteOrchestrator.hpp"
+#include "networkConnection/IWifiConnection.hpp"
 
 #include "esp_log.h"
 #include "esp_mac.h"
@@ -54,7 +55,8 @@ void SateliteOrchestrator::stop()
 void SateliteOrchestrator::onNetworkChanged(const Settings::Network& s)
 {
     ESP_LOGI(TAG, "Network settings changed, reconfiguring WiFi");
-    _network.configure(s.ssid, s.password);
+    if (auto* wifi = dynamic_cast<IWifiConnection*>(&_network))
+        wifi->configure(s.ssid, s.password);
     // _beacon.stop(); // TODO Check if needed.
 }
 
