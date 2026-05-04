@@ -51,8 +51,8 @@ private:
     static constexpr char _infoTopic[] = "system/info";
 
     char                     _url[256]        = {};
-    char                     _tallyTopic[128] = {};
-    char                     _alertTopic[128] = {};
+    char                     _tallyTopic[160] = {};
+    char                     _alertTopic[160] = {};
     esp_mqtt_client_handle_t _client          = nullptr;
 
     void updateSubscriptions() override {
