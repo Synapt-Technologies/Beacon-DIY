@@ -27,13 +27,12 @@ public:
         , _beacon(beacon)
         , _consumerCount(consumerCount < MAX_CONSUMERS ? consumerCount : MAX_CONSUMERS)
         , _http(http)
+        , _httpCtx{_config, _profile, _network, _beacon}
     {
         _config = new Config(&store);
         
         memset(_consumers, 0, sizeof(_consumers));
         memcpy(_consumers, consumers, _consumerCount * sizeof(IConsumer*));
-
-        _httpCtx = { _config, _profile, _network, _beacon };
     }
 
     virtual ~IOrchestrator() = default;
@@ -49,6 +48,8 @@ protected:
     IConsumer*           _consumers[MAX_CONSUMERS];
     uint8_t              _consumerCount;
     EspHttpServer&       _http;
+
+    // TODO Move to UI class.
     HttpCtx              _httpCtx;
 
     // TODO Check if needed, or should be stored in the INetworkConnection implementation. Some devices may not have an IP.
