@@ -118,7 +118,7 @@ void SateliteOrchestrator::applyAlert(DeviceAlertAction action,
 void SateliteOrchestrator::onNetworkStatus(NetworkStatus status, esp_ip4_addr_t ip)
 {
     _networkStatus = status;
-    this->ip = ip;
+    this->_networkIp = ip;
     // TODO Check if state changes need to be handled by the orchestrator. E.g. Beacon connection.
 }
 
