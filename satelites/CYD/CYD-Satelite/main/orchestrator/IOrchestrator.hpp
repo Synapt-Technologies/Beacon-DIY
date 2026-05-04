@@ -31,6 +31,8 @@ public:
         
         memset(_consumers, 0, sizeof(_consumers));
         memcpy(_consumers, consumers, _consumerCount * sizeof(IConsumer*));
+
+        _httpCtx = { *_config, _profile, _network, _beacon };
     }
 
     virtual ~IOrchestrator() = default;
@@ -51,4 +53,7 @@ protected:
     // TODO Check if needed, or should be stored in the INetworkConnection implementation. Some devices may not have an IP.
     NetworkStatus  _networkStatus = NetworkStatus::DISCONNECTED;
     esp_ip4_addr_t _networkIp;
+
+    // TODO Move to UI class.
+    HttpCtx _httpCtx;
 };
