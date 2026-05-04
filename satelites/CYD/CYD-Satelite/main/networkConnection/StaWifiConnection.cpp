@@ -84,11 +84,11 @@ void StaWifiConnection::configure(const char* ssid, const char* password)
     if (_staNetif) applyStaConfig(); // update driver; orchestrator triggers reconnect
 }
 
-int8_t StaWifiConnection::getRssi() const
+int8_t StaWifiConnection::getRssi() const // TODO Change return type?
 {
-    int8_t rssi = 0;
+    int rssi = 0;
     esp_wifi_sta_get_rssi(&rssi);
-    return rssi;
+    return static_cast<int8_t>(rssi);
 }
 
 void StaWifiConnection::triggerScan()
