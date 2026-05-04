@@ -24,12 +24,13 @@ public:
         , _profile(profile)
         , _network(network)
         , _beacon(beacon)
+        , _consumerCount(consumerCount < MAX_CONSUMERS ? consumerCount : MAX_CONSUMERS)
         , _http(http)
     {
         _config = new Config(store);
         
         memset(_consumers, 0, sizeof(_consumers));
-        memcpy(_consumers, consumers, consumerCount * sizeof(IConsumer*));
+        memcpy(_consumers, consumers, _consumerCount * sizeof(IConsumer*));
     }
 
     virtual ~IOrchestrator() = default;
@@ -44,5 +45,6 @@ protected:
     INetworkConnection&  _network;
     IBeaconConnection&   _beacon;
     IConsumer*           _consumers[MAX_CONSUMERS];
+    uint8_t              _consumerCount;
     EspHttpServer&       _http;
 };
