@@ -18,7 +18,7 @@ struct Settings {
 
     struct Display {
         uint8_t           brightness[8]   = {255, 255, 255, 255, 255, 255, 255, 255};
-        DeviceAlertTarget alertTarget[8]  = {
+        DeviceAlertTarget alertTarget[8]  = { // TODO: Currently not implemented, for multi target consumers.
             DeviceAlertTarget::ALL, DeviceAlertTarget::ALL,
             DeviceAlertTarget::ALL, DeviceAlertTarget::ALL,
             DeviceAlertTarget::ALL, DeviceAlertTarget::ALL,
