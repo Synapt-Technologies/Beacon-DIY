@@ -3,9 +3,19 @@
 
 Config::Config(ISettingsStore& store) : _store(store) {}
 
-bool Config::load()
+bool Config::load(bool applyCb = true)
 {
-    return _store.load(_settings);
+    if (!_store.load(_settings)) {
+        return false;
+    }
+
+    if (applyCb) {
+        if (_networkCb) _networkCb(_settings.network);
+        if (_beaconCb) _beaconCb(_settings.beacon);
+        if (_displayCb) _displayCb(_settings.display);
+    }
+
+    return true;
 }
 
 const Settings& Config::get() const { return _settings; }

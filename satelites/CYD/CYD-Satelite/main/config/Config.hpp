@@ -11,7 +11,7 @@ public:
 
     explicit Config(ISettingsStore& store);
 
-    bool            load();
+    bool            load(bool applyCb = true);
     const Settings& get() const;
 
     // Apply a full or partial settings update.
