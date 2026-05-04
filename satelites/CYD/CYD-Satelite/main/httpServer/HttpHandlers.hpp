@@ -9,7 +9,7 @@
 typedef struct HttpCtx {
     Config&              config;
     const DeviceProfile& profile;
-    IWifiConnection&     wifi;
+    INetworkConnection&  wifi;
     IBeaconConnection&   beacon;
 } HttpCtx;
 
