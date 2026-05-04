@@ -22,15 +22,14 @@ public:
                     uint8_t              consumerCount,
                     EspHttpServer&       http
                 ) :
-          _profile(profile)
+          _config(store)
+        , _profile(profile)
         , _network(network)
         , _beacon(beacon)
         , _consumerCount(consumerCount < MAX_CONSUMERS ? consumerCount : MAX_CONSUMERS)
         , _http(http)
         , _httpCtx{_config, _profile, _network, _beacon}
     {
-        _config = new Config(&store);
-        
         memset(_consumers, 0, sizeof(_consumers));
         memcpy(_consumers, consumers, _consumerCount * sizeof(IConsumer*));
     }
@@ -55,5 +54,4 @@ protected:
     // TODO Check if needed, or should be stored in the INetworkConnection implementation. Some devices may not have an IP.
     NetworkStatus  _networkStatus = NetworkStatus::DISCONNECTED;
     esp_ip4_addr_t _networkIp;
-
 };
