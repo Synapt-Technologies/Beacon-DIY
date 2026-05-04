@@ -86,6 +86,9 @@ private:
     void clearSubscriptions() override {
         if (!_client) return;
 
+        // TODO Unsubscribe all topics function?
+        // TODO unsubscribe to info? Doesn't change.
+
         esp_mqtt_client_unsubscribe(_client, _infoTopic);
 
         if (_tallyTopic[0]) {
