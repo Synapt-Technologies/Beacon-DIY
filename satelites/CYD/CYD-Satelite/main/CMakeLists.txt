@@ -38,7 +38,7 @@ idf_component_register(
     REQUIRES
         esp_driver_gpio led_strip
         mqtt esp_netif esp_wifi nvs_flash
-        esp_http_server json
+        esp_http_server cjson
     EMBED_TXTFILES
         "ui/index.html"
         "ui/ui.css"
