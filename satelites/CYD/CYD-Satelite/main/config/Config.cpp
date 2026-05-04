@@ -3,7 +3,7 @@
 
 Config::Config(ISettingsStore& store) : _store(store) {}
 
-bool Config::load(bool applyCb = true)
+bool Config::load(bool applyCb)
 {
     if (!_store.load(_settings)) {
         return false;
