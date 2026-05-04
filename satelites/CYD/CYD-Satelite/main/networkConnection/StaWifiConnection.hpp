@@ -2,6 +2,7 @@
 
 #include "networkConnection/IWifiConnection.hpp"
 #include "freertos/FreeRTOS.h"
+#include "freertos/timers.h"
 #include "esp_wifi.h"
 
 class StaWifiConnection : public IWifiConnection {
@@ -29,10 +30,14 @@ public:
     esp_ip4_addr_t getApIp()                              const override;
 
 private:
-    static constexpr char TAG[]    = "StaWifi";
-    static constexpr int  SCAN_MAX = 32;
+    static constexpr char TAG[]            = "StaWifi";
+    static constexpr int  SCAN_MAX         = 32;
+    static constexpr int  RECONNECT_MS     = 1000;
 
-    ConnectionCb _cb;
+    bool           _running     = false;
+    int            _retryCount  = 0;
+    ConnectionCb   _cb;
+    TimerHandle_t  _reconnectTimer = nullptr;
 
     esp_netif_t*   _staNetif = nullptr;
     esp_netif_t*   _apNetif  = nullptr;
@@ -47,6 +52,8 @@ private:
 
     static void eventHandler(void* arg, esp_event_base_t base,
                              int32_t id, void* data);
+    static void reconnectTimerCb(TimerHandle_t timer);
+
     void        onEvent(esp_event_base_t base, int32_t id, void* data);
     void        fireCallback(NetworkStatus status);
 

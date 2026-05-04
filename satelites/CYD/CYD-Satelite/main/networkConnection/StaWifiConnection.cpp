@@ -9,7 +9,10 @@
 
 void StaWifiConnection::start()
 {
+    if (_staNetif) return; // guard against double-call
+
     _staNetif = esp_netif_create_default_wifi_sta();
+    _apNetif  = esp_netif_create_default_wifi_ap(); // created once, reused by startAp/stopAp
 
     wifi_init_config_t initCfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&initCfg));
@@ -22,8 +25,11 @@ void StaWifiConnection::start()
     ESP_ERROR_CHECK(esp_wifi_start());
     esp_wifi_set_ps(WIFI_PS_NONE);
 
-    wifi_scan_config_t scanCfg = {};
-    esp_wifi_scan_start(&scanCfg, false);
+    _reconnectTimer = xTimerCreate("wifi_rc", pdMS_TO_TICKS(RECONNECT_MS),
+                                   pdFALSE, this, reconnectTimerCb);
+
+    _running    = true;
+    _retryCount = 0;
 
     ESP_LOGI(TAG, "Started");
 }
@@ -32,6 +38,12 @@ void StaWifiConnection::stop()
 {
     if (!_staNetif) return;
 
+    _running = false; // stop event handler and timer callback from acting first
+
+    if (_reconnectTimer) {
+        xTimerStop(_reconnectTimer, 0);
+    }
+
     esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID,    eventHandler);
     esp_event_handler_unregister(IP_EVENT,   IP_EVENT_STA_GOT_IP, eventHandler);
 
@@ -39,23 +51,21 @@ void StaWifiConnection::stop()
     esp_wifi_deinit();
 
     esp_netif_destroy(_staNetif); _staNetif = nullptr;
-    if (_apNetif) { esp_netif_destroy(_apNetif); _apNetif = nullptr; }
+    esp_netif_destroy(_apNetif);  _apNetif  = nullptr;
     _apActive = false;
+
+    if (_reconnectTimer) {
+        xTimerDelete(_reconnectTimer, 0);
+        _reconnectTimer = nullptr;
+    }
 
     _ip     = {};
     _status = NetworkStatus::DISCONNECTED;
     fireCallback(NetworkStatus::DISCONNECTED);
 }
 
-NetworkStatus StaWifiConnection::getStatus() const
-{
-    return _status;
-}
-
-esp_ip4_addr_t StaWifiConnection::getIp() const
-{
-    return _ip;
-}
+NetworkStatus StaWifiConnection::getStatus() const { return _status; }
+esp_ip4_addr_t StaWifiConnection::getIp()    const { return _ip;     }
 
 void StaWifiConnection::setConnectionCallback(ConnectionCb cb)
 {
@@ -71,7 +81,7 @@ void StaWifiConnection::configure(const char* ssid, const char* password)
     _ssid[sizeof(_ssid) - 1] = '\0';
     _pass[sizeof(_pass) - 1] = '\0';
 
-    if (_staNetif) applyStaConfig(); // update driver in-place; orchestrator triggers reconnect
+    if (_staNetif) applyStaConfig(); // update driver; orchestrator triggers reconnect
 }
 
 int8_t StaWifiConnection::getRssi() const
@@ -98,8 +108,10 @@ int StaWifiConnection::getScanResults(WifiScanResult* out, int maxCount)
 
 void StaWifiConnection::startAp(const char* namePrefix, const char* password)
 {
-    if (!_apNetif)
-        _apNetif = esp_netif_create_default_wifi_ap();
+    if (!_staNetif) {
+        ESP_LOGE(TAG, "startAp() called before start()");
+        return;
+    }
 
     char ssid[32] = {};
     buildApSsid(ssid, sizeof(ssid), namePrefix);
@@ -132,23 +144,15 @@ void StaWifiConnection::stopAp()
     if (!_apActive) return;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-
-    if (_apNetif) { esp_netif_destroy(_apNetif); _apNetif = nullptr; }
+    // _apNetif is kept alive — reused on next startAp()
     _apActive = false;
     _apIp     = {};
 
     ESP_LOGI(TAG, "AP stopped");
 }
 
-bool StaWifiConnection::isApActive() const
-{
-    return _apActive;
-}
-
-esp_ip4_addr_t StaWifiConnection::getApIp() const
-{
-    return _apIp;
-}
+bool           StaWifiConnection::isApActive() const { return _apActive; }
+esp_ip4_addr_t StaWifiConnection::getApIp()    const { return _apIp;     }
 
 // ── Private ───────────────────────────────────────────────────────────────────
 
@@ -158,8 +162,17 @@ void StaWifiConnection::eventHandler(void* arg, esp_event_base_t base,
     static_cast<StaWifiConnection*>(arg)->onEvent(base, id, data);
 }
 
+void StaWifiConnection::reconnectTimerCb(TimerHandle_t timer)
+{
+    auto* self = static_cast<StaWifiConnection*>(pvTimerGetTimerID(timer));
+    if (self->_running && self->_ssid[0])
+        esp_wifi_connect();
+}
+
 void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
 {
+    if (!_running) return; // guard against post-stop events
+
     if (base == WIFI_EVENT) {
         switch (id) {
         case WIFI_EVENT_STA_START:
@@ -178,10 +191,15 @@ void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
             auto* e = static_cast<wifi_event_sta_disconnected_t*>(data);
             ESP_LOGW(TAG, "Disconnected reason=%d", e->reason);
 
-            if (_ssid[0]) {
-                esp_wifi_connect();
+            // Don't retry on intentional disconnect
+            if (_ssid[0] && e->reason != WIFI_REASON_ASSOC_LEAVE) {
                 _status = NetworkStatus::CONNECTING;
                 fireCallback(NetworkStatus::CONNECTING);
+                if (_retryCount++ == 0) {
+                    esp_wifi_connect(); // first failure: reconnect immediately
+                } else {
+                    xTimerStart(_reconnectTimer, 0); // subsequent: short delay
+                }
             }
             break;
         }
@@ -206,9 +224,10 @@ void StaWifiConnection::onEvent(esp_event_base_t base, int32_t id, void* data)
         default: break;
         }
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
-        auto* e = static_cast<ip_event_got_ip_t*>(data);
-        _ip     = e->ip_info.ip;
-        _status = NetworkStatus::CONNECTED;
+        auto* e     = static_cast<ip_event_got_ip_t*>(data);
+        _ip         = e->ip_info.ip;
+        _retryCount = 0;
+        _status     = NetworkStatus::CONNECTED;
         fireCallback(NetworkStatus::CONNECTED);
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&_ip));
     }
@@ -232,5 +251,6 @@ void StaWifiConnection::applyStaConfig()
     strlcpy((char*)staCfg.sta.ssid,     _ssid, sizeof(staCfg.sta.ssid));
     strlcpy((char*)staCfg.sta.password, _pass, sizeof(staCfg.sta.password));
     staCfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    staCfg.sta.scan_method        = WIFI_FAST_SCAN;
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &staCfg));
 }
