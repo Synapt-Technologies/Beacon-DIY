@@ -8,6 +8,7 @@ void EspHttpServer::start(uint16_t port)
     httpd_config_t cfg   = HTTPD_DEFAULT_CONFIG();
     cfg.server_port      = port;
     cfg.max_uri_handlers = MAX_URI_HANDLERS;
+    cfg.stack_size       = 8192;
 
     if (httpd_start(&_server, &cfg) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start on port %d", port);
