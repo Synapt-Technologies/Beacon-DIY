@@ -14,7 +14,7 @@ public:
 
     void registerHandler(const char*        uri,
                          httpd_method_t     method,
-                         httpd_handle_t     handler,
+                         esp_err_t          (*handler)(httpd_req_t*),
                          void*              ctx = nullptr);
 
 private:

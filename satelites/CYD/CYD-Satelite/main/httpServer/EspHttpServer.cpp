@@ -27,7 +27,7 @@ void EspHttpServer::stop()
 bool EspHttpServer::isRunning() const { return _server != nullptr; }
 
 void EspHttpServer::registerHandler(const char* uri, httpd_method_t method,
-                                    httpd_handle_t handle, void* ctx)
+                                    esp_err_t (*handle)(httpd_req_t*), void* ctx)
 {
     if (!_server) {
         ESP_LOGW(TAG, "registerHandler() called before start()");
