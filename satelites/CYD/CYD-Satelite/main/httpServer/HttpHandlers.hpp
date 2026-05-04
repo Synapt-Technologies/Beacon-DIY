@@ -3,13 +3,13 @@
 #include "esp_http_server.h"
 #include "config/Config.hpp"
 #include "config/DeviceProfile.hpp"
-#include "networkConnection/IWifiConnection.hpp"
+#include "networkConnection/INetworkConnection.hpp"
 #include "beaconConnection/IBeaconConnection.hpp"
 
 typedef struct HttpCtx {
     Config&              config;
     const DeviceProfile& profile;
-    INetworkConnection&  wifi;
+    INetworkConnection&  network;
     IBeaconConnection&   beacon;
 } HttpCtx;
 
