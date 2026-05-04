@@ -16,11 +16,18 @@ void SateliteOrchestrator::start()
     _config.onBeaconChanged ([this](const Settings::Beacon&  s){ onBeaconChanged(s);  });
     _config.onDisplayChanged([this](const Settings::Display& s){ onDisplayChanged(s); });
 
-    _beacon.setTallyCallback([this](TallyState state)                                        { applyTally(state);          });
-    _beacon.setAlertCallback([this](DeviceAlertAction a, DeviceAlertTarget t, uint32_t ms)   { applyAlert(a, t, ms);       });
+    _beacon.setTallyCallback(
+        [this](TallyState state) { applyTally(state); }
+    );
+    _beacon.setAlertCallback(
+        [this](DeviceAlertAction a, DeviceAlertTarget t, uint32_t ms) { applyAlert(a, t, ms); }
+    );
 
+    _network.setConnectionCallback( // TODO Check if needed. For the ui? Should it be stored in the INetworkConnection implementation?
+        [this](NetworkStatus s, esp_ip4_addr_t ip) { onWifiStatus(s, ip); }
+    ); 
 
-    _config.load(); // This will trigger the callbacks and start the beacon if WiFi is connected.
+    _config.load();
 
     ESP_LOGI(TAG, "Started");
 }
@@ -69,4 +76,32 @@ void SateliteOrchestrator::onDisplayChanged(const Settings::Display& s)
         _consumers[i]->setBrightness(s.brightness[i]);
         // TODO Add alert target handeling. Not implemented because of multi target consumers.
     }
+}
+
+// ? Runtime Callbacks
+void SateliteOrchestrator::applyTally(TallyState state)
+{
+    for (int i = 0; i < _consumerCount; i++) {
+        _consumers[i]->setState(state);
+    }
+}
+
+void SateliteOrchestrator::applyAlert(DeviceAlertAction action,
+                                       DeviceAlertTarget target,
+                                       uint32_t timeout)
+{
+    for (int i = 0; i < _consumerCount; i++) {
+        _consumers[i]->setAlert(action, target, timeout);
+    }
+}
+
+
+// ? Wifi Callbacks
+
+
+void SateliteOrchestrator::onWifiStatus(NetworkStatus status, esp_ip4_addr_t ip)
+{
+    _networkStatus = status;
+    this->ip = ip;
+    // TODO Check if state changes need to be handled by the orchestrator. E.g. Beacon connection.
 }
