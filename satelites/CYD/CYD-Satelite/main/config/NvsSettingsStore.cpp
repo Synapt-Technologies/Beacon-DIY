@@ -22,7 +22,20 @@ bool NvsSettingsStore::load(Settings& out)
     str("consumerId",  out.beacon.consumerId,   sizeof(out.beacon.consumerId));
     str("deviceId",    out.beacon.deviceId,     sizeof(out.beacon.deviceId));
     str("deviceName",  out.deviceName,          sizeof(out.deviceName));
-    nvs_get_u8(h, "brightness", &out.display.brightness);
+    
+    for (int i = 0; i < 5; i++) {
+        uint8_t brightness = out.display.brightness[i];
+        if (nvs_get_u8(h, make_key("brightness_", i), &brightness) == ESP_OK) {
+            out.display.brightness[i] = brightness;
+        }
+    }    
+
+    for (int i = 0; i < 5; i++) {
+        uint8_t raw = static_cast<uint8_t>(out.display.alertTarget[i]);
+        if (nvs_get_u8(h, make_key("alertTarget_", i), &raw) == ESP_OK) {
+            out.display.alertTarget[i] = static_cast<DeviceAlertTarget>(raw);
+        }
+    }
 
     nvs_close(h);
     ESP_LOGI(TAG, "Loaded: ssid='%s' url='%s' consumer='%s'",
@@ -43,12 +56,14 @@ bool NvsSettingsStore::save(const Settings& in)
     if (err == ESP_OK) err = nvs_set_str(h, "deviceId",   in.beacon.deviceId);
     if (err == ESP_OK) err = nvs_set_str(h, "deviceName", in.deviceName);
 
-    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_1", in.display.brightness[0]);
-    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_2", in.display.brightness[1]);
-    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_3", in.display.brightness[2]);
-    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_4", in.display.brightness[3]);
-    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_5", in.display.brightness[4]);
-    if (err == ESP_OK) err = nvs_commit(h);
+    for (int i = 0; i < 5 && err == ESP_OK; i++) {
+        err = nvs_set_u8(h, ("brightness_" + std::to_string(i)).c_str(), in.display.brightness[i]);
+    }
+
+    for (int i = 0; i < 5 && err == ESP_OK; i++) {
+        err = nvs_set_u8(h, ("alertTarget_" + std::to_string(i)).c_str(), static_cast<uint8_t>(in.display.alertTarget[i]));
+    }
+
     if (err == ESP_OK) err = nvs_commit(h);
 
     nvs_close(h);

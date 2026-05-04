@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "types/TallyTypes.hpp"
 
 struct Settings {
 
@@ -17,8 +18,8 @@ struct Settings {
 
     struct Display {
         uint8_t brightness[5] = {255, 255, 255, 255, 255};
-        // LED layout will be added when the LED system is rewritten
+        DeviceAlertTarget alertTarget[5] = {DeviceAlertTarget::ALL, DeviceAlertTarget::ALL, DeviceAlertTarget::ALL, DeviceAlertTarget::ALL, DeviceAlertTarget::ALL};
     } display;
 
-    char deviceName[32] = "CYD Satellite";
+    char deviceName[32] = "Beacon Satellite";
 };
