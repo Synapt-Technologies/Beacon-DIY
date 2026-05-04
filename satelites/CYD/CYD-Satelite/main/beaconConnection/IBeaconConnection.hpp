@@ -22,13 +22,11 @@ public:
         return _connected && (xTaskGetTickCount() - _lastKeepAlive) < pdMS_TO_TICKS(_aliveTimeout);
     };
 
-    virtual void setConsumerAddress(const char* consumer = nullptr) {
+    virtual void setAddress(const char* consumer, const char* device) {
+        // TODO check address checking redundancy. Currently it is done in multiple places.
         strncpy(_consumer, consumer ? consumer : "aedes", sizeof(_consumer) - 1);
         _consumer[sizeof(_consumer) - 1] = '\0';
-        updateSubscriptions();
-    };
-
-    virtual void setDeviceAddress(const char* device = nullptr) {
+        
         if (device) {
             strncpy(_device, device, sizeof(_device) - 1);
             _device[sizeof(_device) - 1] = '\0';
