@@ -26,5 +26,13 @@ struct Settings {
         };
     } display;
 
+    // struct Presentation { // TODO: Server side loading and saving of this, and UI to edit it
+    //     uint8_t           brightness[8]   = {255, 255, 255, 255, 255, 255, 255, 255};
+    //     struct Name {
+    //         char shortName[16] = {};
+    //         char longName[32]  = {};
+    //     } name[8];
+    // } presentation;
+
     char deviceName[32] = "Beacon Satellite";
 };
