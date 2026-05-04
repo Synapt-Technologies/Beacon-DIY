@@ -47,4 +47,8 @@ protected:
     IConsumer*           _consumers[MAX_CONSUMERS];
     uint8_t              _consumerCount;
     EspHttpServer&       _http;
+
+    // TODO Check if needed, or should be stored in the INetworkConnection implementation. Some devices may not have an IP.
+    NetworkStatus  _networkStatus = NetworkStatus::DISCONNECTED;
+    esp_ip4_addr_t _networkIp;
 };
