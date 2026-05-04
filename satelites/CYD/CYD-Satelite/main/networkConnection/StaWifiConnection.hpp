@@ -7,10 +7,11 @@
 
 class StaWifiConnection : public IWifiConnection {
 public:
+    StaWifiConnection(const char* deviceType = "Beacon_Satellite") : IWifiConnection(deviceType) {}
     ~StaWifiConnection() { stop(); }
 
     // INetworkConnection
-    void           start()                                      override;
+    void           start()                                      override; // TODO: Should be in higher level interface
     void           stop()                                       override;
     NetworkStatus  getStatus()                            const override;
     esp_ip4_addr_t getIp()                                const override;

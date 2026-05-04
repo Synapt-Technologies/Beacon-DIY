@@ -13,6 +13,7 @@ struct WifiScanResult {
 
 class IWifiConnection : public INetworkConnection {
 public:
+    IWifiConnection(const char* deviceType = "Beacon_Satellite") : INetworkConnection(deviceType) {}
     virtual ~IWifiConnection() = default;
 
     // STA
