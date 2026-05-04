@@ -21,7 +21,6 @@ public:
     virtual void           stop()                                       = 0;
     virtual NetworkStatus  getStatus()                            const = 0;
     virtual esp_ip4_addr_t getIp()                                const = 0;
-    virtual bool           waitForConnection(uint32_t timeout_ms)       = 0; // returns false on timeout
     virtual void           setConnectionCallback(ConnectionCb cb)       = 0;
 
     bool isConnected() const { return getStatus() == NetworkStatus::CONNECTED; }
