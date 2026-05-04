@@ -13,7 +13,7 @@
 class IOrchestrator {
 public:
     static constexpr uint8_t MAX_CONSUMERS = 8;
-    
+
     IOrchestrator(  ISettingsStore&      store,
                     const DeviceProfile& profile,
                     INetworkConnection&  network,
@@ -37,7 +37,6 @@ public:
     }
 
     virtual ~IOrchestrator() = default;
-    // TODO Deconstructor.
 
     virtual void start() = 0;
     virtual void stop()  = 0;
@@ -50,11 +49,10 @@ protected:
     IConsumer*           _consumers[MAX_CONSUMERS];
     uint8_t              _consumerCount;
     EspHttpServer&       _http;
+    HttpCtx              _httpCtx;
 
     // TODO Check if needed, or should be stored in the INetworkConnection implementation. Some devices may not have an IP.
     NetworkStatus  _networkStatus = NetworkStatus::DISCONNECTED;
     esp_ip4_addr_t _networkIp;
 
-    // TODO Move to UI class.
-    HttpCtx _httpCtx;
 };
