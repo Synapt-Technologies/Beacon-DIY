@@ -42,7 +42,13 @@ bool NvsSettingsStore::save(const Settings& in)
     if (err == ESP_OK) err = nvs_set_str(h, "consumerId", in.beacon.consumerId);
     if (err == ESP_OK) err = nvs_set_str(h, "deviceId",   in.beacon.deviceId);
     if (err == ESP_OK) err = nvs_set_str(h, "deviceName", in.deviceName);
-    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness", in.display.brightness);
+
+    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_1", in.display.brightness[0]);
+    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_2", in.display.brightness[1]);
+    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_3", in.display.brightness[2]);
+    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_4", in.display.brightness[3]);
+    if (err == ESP_OK) err = nvs_set_u8 (h, "brightness_5", in.display.brightness[4]);
+    if (err == ESP_OK) err = nvs_commit(h);
     if (err == ESP_OK) err = nvs_commit(h);
 
     nvs_close(h);

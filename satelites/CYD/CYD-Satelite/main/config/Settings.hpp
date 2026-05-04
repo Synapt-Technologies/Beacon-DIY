@@ -16,7 +16,7 @@ struct Settings {
     } beacon;
 
     struct Display {
-        uint8_t brightness = 255;
+        uint8_t brightness[5] = {255, 255, 255, 255, 255};
         // LED layout will be added when the LED system is rewritten
     } display;
 
