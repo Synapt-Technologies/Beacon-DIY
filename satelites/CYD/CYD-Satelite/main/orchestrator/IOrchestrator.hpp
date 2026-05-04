@@ -21,7 +21,6 @@ public:
                     uint8_t              consumerCount,
                     EspHttpServer&       http
                 )
-        : _config(store)
         , _profile(profile)
         , _network(network)
         , _beacon(beacon)
@@ -29,6 +28,8 @@ public:
         , _http(http)
     {
         _config.load();
+
+        _config = new Config(store);
 
         // Arrays cannot be initialized in the member initializer list in C++
         memset(_consumers, 0, sizeof(_consumers));
