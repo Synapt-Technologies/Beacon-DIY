@@ -234,7 +234,7 @@ esp_err_t HttpHandlers::handleGetStatus(httpd_req_t* req)
 esp_err_t HttpHandlers::handleGetScan(httpd_req_t* req)
 {
     auto* ctx  = static_cast<HttpCtx*>(req->user_ctx);
-    auto* wifi = dynamic_cast<IWifiConnection*>(&ctx->network);
+    auto* wifi = ctx->network.asWifi();
 
     cJSON* root = cJSON_CreateArray();
     if (wifi) {

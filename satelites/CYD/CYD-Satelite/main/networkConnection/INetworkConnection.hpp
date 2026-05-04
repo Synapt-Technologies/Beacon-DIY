@@ -12,6 +12,8 @@ enum class NetworkStatus {
     ERROR,
 };
 
+class IWifiConnection;
+
 class INetworkConnection {
 public:
     using ConnectionCb = std::function<void(NetworkStatus status, esp_ip4_addr_t ip)>;
@@ -29,6 +31,8 @@ public:
     virtual void           setConnectionCallback(ConnectionCb cb)       = 0;
 
     bool isConnected() const { return getStatus() == NetworkStatus::CONNECTED; }
+
+    virtual IWifiConnection* asWifi() { return nullptr; }
 
 protected:
     char _deviceType[32] = "";

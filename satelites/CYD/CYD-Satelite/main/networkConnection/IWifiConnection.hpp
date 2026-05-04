@@ -16,6 +16,8 @@ public:
     IWifiConnection(const char* deviceType = "Beacon_Satellite") : INetworkConnection(deviceType) {}
     virtual ~IWifiConnection() = default;
 
+    IWifiConnection* asWifi() override { return this; }
+
     // STA
     virtual void   configure(const char* ssid, const char* password) = 0;
     virtual int8_t getRssi()                                   const = 0;

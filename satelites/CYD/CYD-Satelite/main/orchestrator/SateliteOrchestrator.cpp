@@ -55,7 +55,7 @@ void SateliteOrchestrator::stop()
 void SateliteOrchestrator::onNetworkChanged(const Settings::Network& s)
 {
     ESP_LOGI(TAG, "Network settings changed, reconfiguring WiFi");
-    if (auto* wifi = dynamic_cast<IWifiConnection*>(&_network))
+    if (auto* wifi = _network.asWifi())
         wifi->configure(s.ssid, s.password);
     // _beacon.stop(); // TODO Check if needed.
 }
