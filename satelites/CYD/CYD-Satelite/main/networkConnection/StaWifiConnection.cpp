@@ -20,8 +20,16 @@ void StaWifiConnection::start()
     esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,    eventHandler, this);
     esp_event_handler_register(IP_EVENT,   IP_EVENT_STA_GOT_IP, eventHandler, this);
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    // Start in APSTA so we never need to switch modes from within an event handler
+    // (calling esp_wifi_set_mode() from a WiFi callback crashes via ppTask → esp_event_post with NULL mutex)
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     applyStaConfig();
+    {
+        wifi_config_t apCfg = {};
+        apCfg.ap.ssid_hidden    = 1;
+        apCfg.ap.max_connection = 0;
+        esp_wifi_set_config(WIFI_IF_AP, &apCfg);
+    }
     ESP_ERROR_CHECK(esp_wifi_start());
     esp_wifi_set_ps(WIFI_PS_NONE);
 
@@ -129,7 +137,6 @@ void StaWifiConnection::startAp(const char* namePrefix, const char* password)
         apCfg.ap.authmode = WIFI_AUTH_OPEN;
     }
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &apCfg));
 
     esp_netif_ip_info_t ipInfo = {};
@@ -144,8 +151,11 @@ void StaWifiConnection::stopAp()
 {
     if (!_apActive) return;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    // _apNetif is kept alive — reused on next startAp()
+    // Hide the AP rather than switching mode (mode switching from an event handler is unsafe)
+    wifi_config_t hiddenCfg = {};
+    hiddenCfg.ap.ssid_hidden    = 1;
+    hiddenCfg.ap.max_connection = 0;
+    esp_wifi_set_config(WIFI_IF_AP, &hiddenCfg);
     _apActive = false;
     _apIp     = {};
 
