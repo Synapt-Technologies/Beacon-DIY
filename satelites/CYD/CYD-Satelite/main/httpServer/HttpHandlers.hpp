@@ -6,12 +6,12 @@
 #include "networkConnection/IWifiConnection.hpp"
 #include "beaconConnection/IBeaconConnection.hpp"
 
-struct HttpCtx {
+typedef struct HttpCtx {
     Config&              config;
     const DeviceProfile& profile;
     IWifiConnection&     wifi;
     IBeaconConnection&   beacon;
-};
+} HttpCtx;
 
 namespace HttpHandlers {
 

@@ -7,6 +7,7 @@
 #include "beaconConnection/IBeaconConnection.hpp"
 #include "consumer/IConsumer.hpp"
 #include "httpServer/EspHttpServer.hpp"
+#include "httpServer/HttpHandlers.hpp"
 #include <cstring>
 
 class IOrchestrator {
@@ -21,18 +22,18 @@ public:
                     uint8_t              consumerCount,
                     EspHttpServer&       http
                 ) :
-        , _profile(profile)
+          _profile(profile)
         , _network(network)
         , _beacon(beacon)
         , _consumerCount(consumerCount < MAX_CONSUMERS ? consumerCount : MAX_CONSUMERS)
         , _http(http)
     {
-        _config = new Config(store);
+        _config = new Config(&store);
         
         memset(_consumers, 0, sizeof(_consumers));
         memcpy(_consumers, consumers, _consumerCount * sizeof(IConsumer*));
 
-        _httpCtx = { *_config, _profile, _network, _beacon };
+        _httpCtx = { _config, _profile, _network, _beacon };
     }
 
     virtual ~IOrchestrator() = default;
