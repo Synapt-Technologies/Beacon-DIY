@@ -26,11 +26,16 @@ bool NvsSettingsStore::load(Settings& out)
     str("ssid",        out.network.ssid,       sizeof(out.network.ssid));
     str("password",    out.network.password,    sizeof(out.network.password));
     str("mqttUrl",     out.beacon.mqttUrl,      sizeof(out.beacon.mqttUrl));
-    str("consumerId",  out.beacon.consumerId,   sizeof(out.beacon.consumerId));
-    str("deviceId",    out.beacon.deviceId,     sizeof(out.beacon.deviceId));
     str("deviceName",  out.deviceName,          sizeof(out.deviceName));
-    
+
     char key[32];
+    for (int i = 0; i < 8; i++) {
+        size_t s = sizeof(out.beacon.consumerId[i]);
+        nvs_get_str(h, make_key(key, sizeof(key), "consumerId_", static_cast<size_t>(i)), out.beacon.consumerId[i], &s);
+        s = sizeof(out.beacon.deviceId[i]);
+        nvs_get_str(h, make_key(key, sizeof(key), "deviceId_", static_cast<size_t>(i)), out.beacon.deviceId[i], &s);
+    }
+
     for (int i = 0; i < (int)(sizeof(out.display.brightness) / sizeof(out.display.brightness[0])); i++) {
         uint8_t brightness = 0;
         if (nvs_get_u8(h, make_key(key, sizeof(key), "brightness_", static_cast<size_t>(i)), &brightness) == ESP_OK)
@@ -44,8 +49,8 @@ bool NvsSettingsStore::load(Settings& out)
     }
 
     nvs_close(h);
-    ESP_LOGI(TAG, "Loaded: ssid='%s' url='%s' consumer='%s'",
-             out.network.ssid, out.beacon.mqttUrl, out.beacon.consumerId);
+    ESP_LOGI(TAG, "Loaded: ssid='%s' url='%s' consumer='%s'...",
+             out.network.ssid, out.beacon.mqttUrl, out.beacon.consumerId[0]);
     return true;
 }
 
@@ -58,11 +63,14 @@ bool NvsSettingsStore::save(const Settings& in)
     if (err == ESP_OK) err = nvs_set_str(h, "ssid",       in.network.ssid);
     if (err == ESP_OK) err = nvs_set_str(h, "password",   in.network.password);
     if (err == ESP_OK) err = nvs_set_str(h, "mqttUrl",    in.beacon.mqttUrl);
-    if (err == ESP_OK) err = nvs_set_str(h, "consumerId", in.beacon.consumerId);
-    if (err == ESP_OK) err = nvs_set_str(h, "deviceId",   in.beacon.deviceId);
     if (err == ESP_OK) err = nvs_set_str(h, "deviceName", in.deviceName);
 
     char key[32];
+    for (int i = 0; i < 8 && err == ESP_OK; i++) {
+        if (err == ESP_OK) err = nvs_set_str(h, make_key(key, sizeof(key), "consumerId_", static_cast<size_t>(i)), in.beacon.consumerId[i]);
+        if (err == ESP_OK) err = nvs_set_str(h, make_key(key, sizeof(key), "deviceId_",   static_cast<size_t>(i)), in.beacon.deviceId[i]);
+    }
+
     for (int i = 0; i < (int)(sizeof(in.display.brightness) / sizeof(in.display.brightness[0])) && err == ESP_OK; i++)
         err = nvs_set_u8(h, make_key(key, sizeof(key), "brightness_", static_cast<size_t>(i)), in.display.brightness[i]);
 
