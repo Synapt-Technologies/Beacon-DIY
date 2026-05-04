@@ -5,10 +5,9 @@
 
 class Config {
 public:
-    // Callbacks return true if a reboot is required to fully apply the change.
-    using NetworkCb = std::function<bool(const Settings::Network&)>;
-    using BeaconCb  = std::function<bool(const Settings::Beacon&)>;
-    using DisplayCb = std::function<bool(const Settings::Display&)>;
+    using NetworkCb = std::function<void(const Settings::Network&)>;
+    using BeaconCb  = std::function<void(const Settings::Beacon&)>;
+    using DisplayCb = std::function<void(const Settings::Display&)>;
 
     explicit Config(ISettingsStore& store);
 
@@ -17,12 +16,12 @@ public:
 
     // Apply a full or partial settings update.
     // Compares each category against the current settings, fires callbacks only
-    // for categories that changed, accumulates reboot flags, then persists.
+    // for categories that changed, then persists.
     // Returns false if saving to the store failed.
-    bool apply(const Settings& updated, bool& rebootNeeded);
+    bool apply(const Settings& updated);
 
     void onNetworkChanged(NetworkCb cb);
-    void onBeaconChanged(BeaconCb cb);
+    void onBeaconChanged (BeaconCb  cb);
     void onDisplayChanged(DisplayCb cb);
 
 private:
