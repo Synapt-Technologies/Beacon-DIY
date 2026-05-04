@@ -9,6 +9,5 @@ enum class DeviceType : uint8_t {
 
 struct DeviceProfile {
     DeviceType  deviceType    = DeviceType::SINGLE_TOPIC;
-    uint8_t     consumerCount = 1;
     char        model[32]     = "Beacon Satellite";
 };
