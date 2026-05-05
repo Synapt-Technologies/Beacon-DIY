@@ -32,7 +32,7 @@
 #define FIX_LED_G_GPIO          GPIO_NUM_16
 #define FIX_LED_B_GPIO          GPIO_NUM_17
 #define ADD_LED_STRIP_GPIO      22
-#define ADD_LED_STRIP_LED_NUMBER 21
+#define ADD_LED_STRIP_LED_NUMBER 64
 
 static led_strip_handle_t createLedStrip()
 {
@@ -85,8 +85,8 @@ extern "C" void app_main()
 
     IBeaconConnection* beacon = new TcpMqttBeaconConnection(mqttUrl);
 
-    IConsumer* consumer1 = new SimpleRGBConsumer(FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO, DeviceAlertTarget::OPERATOR);
-    IConsumer* consumer2 = new WS2812Consumer(createLedStrip(), 21, DeviceAlertTarget::ALL);
+    IConsumer* consumer1 = new WS2812Consumer(createLedStrip(), ADD_LED_STRIP_LED_NUMBER, DeviceAlertTarget::ALL);
+    IConsumer* consumer2 = new SimpleRGBConsumer(FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO, DeviceAlertTarget::OPERATOR);
 
     IConsumer* consumers[] = { consumer1, consumer2 };
 
