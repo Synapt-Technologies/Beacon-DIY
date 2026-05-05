@@ -31,31 +31,8 @@ private:
     gpio_num_t        _rPin, _gPin, _bPin;
     DeviceAlertTarget _target;
 
-    void applyState(TallyState state) override {
-        switch (state)
-        {
-            case TallyState::NONE:
-                this->setColor(0, 0, 0);
-                break;
-            case TallyState::DANGER:
-            case TallyState::WARNING:
-                this->setColor(255, 255, 0);
-                break;
-            case TallyState::INFO:
-                this->setColor(0, 0, 255);
-                break;
-            case TallyState::PREVIEW:
-                this->setColor(0, 255, 0);
-                break;
-            case TallyState::PROGRAM:
-                this->setColor(255, 0, 0);
-                break;
-            default:
-                break;
-        }
-    }
 
-    void setColor(uint8_t r, uint8_t g, uint8_t b) { // TODO PWM
+    void setColor(uint8_t r, uint8_t g, uint8_t b) override { // TODO PWM
         gpio_set_level(_rPin, r > 0 ? 0 : 1);
         gpio_set_level(_gPin, g > 0 ? 0 : 1);
         gpio_set_level(_bPin, b > 0 ? 0 : 1);

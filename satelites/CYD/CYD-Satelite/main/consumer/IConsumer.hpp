@@ -39,9 +39,32 @@ protected:
         return static_cast<uint8_t>((static_cast<uint16_t>(value) * _brightness) / 255u);
     }
 
+    virtual void setColor(uint8_t r, uint8_t g, uint8_t b) = 0;
+    
+    // Sets the state without saving it to _state
+    void applyState(TallyState state) {
+        switch (state)
+        {
 
-    virtual void applyState(TallyState state) = 0; // Sets the state without saving it to _state (used for patterns that override the state color)
-
+            case TallyState::DANGER:
+            case TallyState::WARNING:
+                this->setColor(255, 255, 0);
+                break;
+            case TallyState::INFO:
+                this->setColor(0, 0, 255);
+                break;
+            case TallyState::PREVIEW:
+                this->setColor(0, 255, 0);
+                break;
+            case TallyState::PROGRAM:
+                this->setColor(255, 0, 0);
+                break;
+            case TallyState::NONE:
+            default:
+                this->setColor(0, 0, 0);
+                break;
+        }
+    }
 
     struct AlertTaskArg {
         IConsumer* self;
