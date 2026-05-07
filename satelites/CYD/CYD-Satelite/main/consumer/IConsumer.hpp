@@ -12,10 +12,12 @@ public:
 
     // Sets all LEDs regardless of target
     virtual void setState(const TallyState state) {
-        this->_state = state;
-
-        if (_alertTask) return;
-        this->applyState(state);
+        _state = state;
+        if (_alertTask) {
+            xTaskNotify(_alertTask, 2, eSetBits);
+            return;
+        }
+        applyState(state);
     }
 
     virtual void setAlert(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
@@ -91,18 +93,22 @@ protected:
         TickType_t step_ticks = pdMS_TO_TICKS(self->getAlertStepLength(a->action));
         uint8_t step_count = self->getAlertStepCount(a->action);
 
-        while (xTaskGetTickCount() < start_time + parsed_timeout || infinite_timeout) {
-            self->setAlertStep(a->action, a->target, step++);
+        bool stop = false;
+        while (!stop && (xTaskGetTickCount() < start_time + parsed_timeout || infinite_timeout)) {
+            self->setAlertStep(a->action, a->target, step);
 
-            if (step >= step_count) step = 0;
+            TickType_t step_deadline = xTaskGetTickCount() + step_ticks;
+            if (!infinite_timeout && step_deadline > start_time + parsed_timeout)
+                step_deadline = start_time + parsed_timeout;
 
-            TickType_t parsed_delay =
-                (xTaskGetTickCount() + step_ticks > start_time + parsed_timeout) && !infinite_timeout ?
-                (start_time + parsed_timeout - xTaskGetTickCount()) :
-                step_ticks;
+            while (xTaskGetTickCount() < step_deadline) {
+                uint32_t notif = 0;
+                xTaskNotifyWait(0, ULONG_MAX, &notif, step_deadline - xTaskGetTickCount());
+                if (notif & 1) { stop = true; break; }
+                if (notif & 2) self->setAlertStep(a->action, a->target, step);
+            }
 
-            if (ulTaskNotifyTake(pdTRUE, parsed_delay))
-                break;
+            step = (step + 1) % step_count;
         }
 
         bool replaced = (self->_alertTask != nullptr) && (self->_alertTask != xTaskGetCurrentTaskHandle());
@@ -123,7 +129,7 @@ protected:
         if (_alertTask) {
             TaskHandle_t h = _alertTask;
             _alertTask = nullptr;
-            xTaskNotifyGive(h);
+            xTaskNotify(h, 1, eSetBits);
         }
 
         auto* arg    = new AlertTaskArg;
@@ -141,7 +147,7 @@ protected:
 
         TaskHandle_t h = _alertTask;
         _alertTask = nullptr;
-        xTaskNotifyGive(h);
+        xTaskNotify(h, 1, eSetBits);
     };
 
 
