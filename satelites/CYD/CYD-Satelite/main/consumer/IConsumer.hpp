@@ -43,29 +43,21 @@ protected:
 
     virtual void setColor(uint8_t r, uint8_t g, uint8_t b) = 0;
     
-    // Sets the state without saving it to _state
-    void applyState(TallyState state) {
-        switch (state)
-        {
-
+    static void stateToColor(TallyState state, uint8_t& r, uint8_t& g, uint8_t& b) {
+        switch (state) {
             case TallyState::DANGER:
-            case TallyState::WARNING:
-                this->setColor(255, 255, 0);
-                break;
-            case TallyState::INFO:
-                this->setColor(0, 0, 255);
-                break;
-            case TallyState::PREVIEW:
-                this->setColor(0, 255, 0);
-                break;
-            case TallyState::PROGRAM:
-                this->setColor(255, 0, 0);
-                break;
-            case TallyState::NONE:
-            default:
-                this->setColor(0, 0, 0);
-                break;
+            case TallyState::WARNING: r = 255; g = 255; b =   0; return;
+            case TallyState::INFO:    r =   0; g =   0; b = 255; return;
+            case TallyState::PREVIEW: r =   0; g = 255; b =   0; return;
+            case TallyState::PROGRAM: r = 255; g =   0; b =   0; return;
+            default:                  r =   0; g =   0; b =   0; return;
         }
+    }
+
+    void applyState(TallyState state) {
+        uint8_t r, g, b;
+        stateToColor(state, r, g, b);
+        this->setColor(r, g, b);
     }
 
     struct AlertTaskArg {
