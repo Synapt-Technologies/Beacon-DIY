@@ -131,9 +131,9 @@ private:
                    strncmp(event->topic, topic, event->topic_len) == 0;
         };
 
-        ESP_LOGI(TAG, "Received data on topic %.*s: %.*s",
-                 event->topic_len, event->topic,
-                 event->data_len, event->data);
+        // ESP_LOGI(TAG, "Received data on topic %.*s: %.*s",
+        //          event->topic_len, event->topic,
+        //          event->data_len, event->data);
 
         if      (matches(_tallyTopic)) onTally(event->data, event->data_len);
         else if (matches(_alertTopic)) onAlert(event->data, event->data_len);
