@@ -36,14 +36,19 @@ protected:
     uint8_t _brightnessFloor = 0;
     TallyState _state = TallyState::NONE;
 
-    TaskHandle_t _alertTask = {}; 
+    TaskHandle_t _alertTask = {};
+    uint8_t _lut[256] = {};
 
-    uint8_t scale_brightness(uint8_t value) const
-    {
-        uint8_t scaled = static_cast<uint8_t>((static_cast<uint16_t>(value) * _brightness) / 255u);
-        if (scaled == 0) return 0;
-        uint8_t corrected = static_cast<uint8_t>(255.0f * powf(scaled / 255.0f, 2.8f));
-        return corrected < _brightnessFloor ? _brightnessFloor : corrected;
+    void rebuildLut() {
+        _lut[0] = 0;
+        for (int i = 1; i < 256; i++) {
+            float t = (i - 1) / 254.0f;
+            _lut[i] = static_cast<uint8_t>(_brightnessFloor + (255 - _brightnessFloor) * powf(t, 2.8f) + 0.5f);
+        }
+    }
+
+    uint8_t scale_brightness(uint8_t value) const {
+        return _lut[(static_cast<uint16_t>(value) * _brightness) / 255u];
     }
 
     virtual void setColor(uint8_t r, uint8_t g, uint8_t b) = 0;
@@ -121,7 +126,7 @@ protected:
         arg->target  = target;
         arg->timeout = timeout;
 
-        xTaskCreate(alertTask, "led_pat", 2048, arg, 18, &_alertTask);
+        xTaskCreate(alertTask, "led_pat", 4096, arg, 18, &_alertTask);
     };
 
     void stopAlertTask() {
