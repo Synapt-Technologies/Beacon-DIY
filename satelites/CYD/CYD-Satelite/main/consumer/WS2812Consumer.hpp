@@ -5,14 +5,22 @@
 #include "led_pattern.h"
 
 
+struct StripSection { // Todo: Brightness section? -> Then the way they are iterated would change..
+    uint8_t             startLed;
+    uint8_t             alertPattern;
+    DeviceAlertTarget   target;
+};
+
 class WS2812Consumer : public IConsumer {
 
 public:
-    WS2812Consumer(led_strip_handle_t strip, uint8_t count, DeviceAlertTarget target) {
+    WS2812Consumer(led_strip_handle_t strip, uint8_t ledCount, StripSection sections[], uint8_t sectionCount, DeviceAlertTarget target) {
 
         _target = target;
         _strip = strip;
-        _ledCount = count;
+        _ledCount = ledCount;
+        _sections = sections;
+        _sectionCount = sectionCount;
     }
     ~WS2812Consumer() {
 
@@ -24,6 +32,9 @@ private:
 
     led_strip_handle_t _strip;
     int                _ledCount;
+
+    StripSection* _sections;
+    uint8_t _sectionCount;
 
 
     void setColor(uint8_t r, uint8_t g, uint8_t b) {
@@ -51,7 +62,8 @@ private:
 
     struct AlertPatternConfig {
         uint32_t speedMs;
-        const TallyState* pattern;
+        // const TallyState (*pattern)[5];
+        const TallyState *pattern;
         uint8_t patternLen;
     };
 
@@ -64,18 +76,41 @@ private:
     }
 
     // Returns nullptr for CLEAR (no pattern). TallyState::NONE = LED off.
-    static const AlertPatternConfig* getAlertPattern(DeviceAlertAction action) {
+    static const AlertPatternConfig* getAlertPattern(DeviceAlertAction action, uint8_t index = 0) {
 
-        static const TallyState IDENT[]  = { TallyState::PREVIEW, TallyState::PROGRAM };
-        static const TallyState INFO[]   = { TallyState::PREVIEW, TallyState::NONE, TallyState::NONE, TallyState::NONE };
-        static const TallyState NORMAL[] = { TallyState::WARNING, TallyState::NONE };
-        static const TallyState PRIO[]   = { TallyState::PROGRAM, TallyState::WARNING };
+        static const TallyState IDENT[][5]  = {
+            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
+            { TallyState::PREVIEW,  TallyState::PROGRAM,    TallyState::PREVIEW,    TallyState::PROGRAM },
+            { TallyState::PROGRAM,  TallyState::PREVIEW,    TallyState::PROGRAM,    TallyState::PREVIEW },
+            { TallyState::PROGRAM,  TallyState::NONE,       TallyState::PREVIEW,    TallyState::NONE },
+            { TallyState::NONE,     TallyState::PROGRAM,       TallyState::NONE,    TallyState::PREVIEW },
+        };
+        static const TallyState INFO[][5]   = { 
+            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
+            { TallyState::INFO,     TallyState::NONE,       TallyState::INFO,       TallyState::NONE },
+            { TallyState::NONE,     TallyState::INFO,       TallyState::NONE,       TallyState::INFO },
+            { TallyState::INFO,     TallyState::NONE,       TallyState::INFO,       TallyState::NONE },
+            { TallyState::NONE,     TallyState::INFO,       TallyState::NONE,       TallyState::INFO },
+        };
+        static const TallyState NORMAL[][5] = { 
+            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
+            { TallyState::WARNING,  TallyState::NONE,       TallyState::WARNING,    TallyState::NONE },
+            { TallyState::NONE,     TallyState::WARNING,    TallyState::NONE,       TallyState::WARNING },
+
+        };
+        static const TallyState PRIO[][5]   = { 
+            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
+            { TallyState::PROGRAM,  TallyState::WARNING,    TallyState::PROGRAM,    TallyState::WARNING },
+            { TallyState::WARNING,  TallyState::PROGRAM,    TallyState::WARNING,    TallyState::PROGRAM },
+            { TallyState::PROGRAM,  TallyState::NONE,       TallyState::WARNING,    TallyState::NONE },
+            { TallyState::NONE,     TallyState::PROGRAM,    TallyState::NONE,       TallyState::WARNING },
+        };
 
         static const AlertPatternConfig PATTERNS[] = {
-            { 400, IDENT,  2 },
-            { 300, INFO,   4 },
-            { 400, NORMAL, 2 },
-            { 150, PRIO,   2 },
+            { 400, IDENT[index],  2 },
+            { 300, INFO[index],   4 },
+            { 400, NORMAL[index], 2 },
+            { 150, PRIO[index],   2 },
         };
 
         switch (action) {
