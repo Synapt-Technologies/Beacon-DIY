@@ -73,6 +73,10 @@ private:
             uint8_t variantIdx = sec.alertPattern % config->variantCount;
             TallyState state = config->patterns[variantIdx][step % config->patternLen];
 
+            if (state == TallyState::NONE) {
+                state = _state;
+            }
+
             uint8_t r, g, b;
             stateToColor(state, r, g, b);
             setColorRange(start, count, r, g, b);
