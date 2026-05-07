@@ -88,7 +88,7 @@ extern "C" void app_main()
     static StripSection ws2812Sections[] = {
         { 0, 1, DeviceAlertTarget::ALL },
         { 16, 0, DeviceAlertTarget::ALL },
-        { 54, 2, DeviceAlertTarget::ALL },
+        { 48, 2, DeviceAlertTarget::ALL },
     };
     IConsumer* consumer1 = new WS2812Consumer(createLedStrip(), ADD_LED_STRIP_LED_NUMBER, ws2812Sections, 3);
     IConsumer* consumer2 = new SimpleRGBConsumer(FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO, DeviceAlertTarget::OPERATOR);
