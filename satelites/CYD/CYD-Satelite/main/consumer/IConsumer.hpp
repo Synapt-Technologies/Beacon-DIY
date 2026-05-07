@@ -101,12 +101,15 @@ protected:
                 (start_time + parsed_timeout - xTaskGetTickCount()) :
                 step_ticks;
 
-            if (ulTaskNotifyTake(pdTRUE, parsed_delay)) 
+            if (ulTaskNotifyTake(pdTRUE, parsed_delay))
                 break;
         }
 
-        self->_alertTask = nullptr;
-        self->applyState(self->_state);
+        bool replaced = (self->_alertTask != nullptr) && (self->_alertTask != xTaskGetCurrentTaskHandle());
+        if (!replaced) {
+            self->_alertTask = nullptr;
+            self->applyState(self->_state);
+        }
         delete a;
         vTaskDelete(nullptr);
     }
