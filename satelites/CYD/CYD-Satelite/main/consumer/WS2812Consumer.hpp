@@ -20,7 +20,7 @@ public:
         _ledCount = ledCount;
         _sections = sections;
         _sectionCount = sectionCount;
-        _brightnessFloor = 50;
+        _brightnessFloor = 35;
     }
     ~WS2812Consumer() {
 
