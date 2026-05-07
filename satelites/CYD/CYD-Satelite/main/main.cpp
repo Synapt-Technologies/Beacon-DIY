@@ -81,7 +81,7 @@ extern "C" void app_main()
     };
     INetworkConnection* network = new StaWifiConnection("CYD_Satellite");
 
-    const char* mqttUrl = "mqtt://192.168.10.142";
+    const char* mqttUrl = "mqtt://192.168.10.15";
 
     IBeaconConnection* beacon = new TcpMqttBeaconConnection(mqttUrl);
 
@@ -90,7 +90,7 @@ extern "C" void app_main()
         { 16, 0, DeviceAlertTarget::ALL },
         { 54, 2, DeviceAlertTarget::ALL },
     };
-    IConsumer* consumer1 = new WS2812Consumer(createLedStrip(), ADD_LED_STRIP_LED_NUMBER, ws2812Sections, 1);
+    IConsumer* consumer1 = new WS2812Consumer(createLedStrip(), ADD_LED_STRIP_LED_NUMBER, ws2812Sections, 3);
     IConsumer* consumer2 = new SimpleRGBConsumer(FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO, DeviceAlertTarget::OPERATOR);
 
     IConsumer* consumers[] = { consumer1, consumer2 };
