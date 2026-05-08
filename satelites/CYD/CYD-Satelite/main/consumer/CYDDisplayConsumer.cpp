@@ -124,7 +124,7 @@ void CYDDisplayConsumer::buildUi() {
     }
 
     _labels[0] = lv_label_create(scr);
-    lv_obj_set_style_text_font(_labels[0], &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_font(_labels[0], &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(_labels[0], lv_color_white(), 0);
     lv_label_set_text(_labels[0], "");
     lv_obj_align(_labels[0], LV_ALIGN_CENTER, 0, -16);
