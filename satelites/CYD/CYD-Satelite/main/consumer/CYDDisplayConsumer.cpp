@@ -12,10 +12,10 @@
 namespace {
 constexpr const char* TAG = "CYDDisplay";
 
-constexpr int LCD_PIXEL_CLOCK_HZ      = 40 * 1000 * 1000;
+constexpr int LCD_PIXEL_CLOCK_HZ      = 80 * 1000 * 1000;
 constexpr int LCD_CMD_BITS            = 8;
 constexpr int LCD_PARAM_BITS          = 8;
-constexpr int LCD_DRAW_BUFFER_LINES   = 40; // double-buffered, 320*40*2 = 25 KB each
+constexpr int LCD_DRAW_BUFFER_LINES   = 80; // double-buffered, 320*80*2 = 50 KB each
 }
 
 
@@ -56,7 +56,7 @@ void CYDDisplayConsumer::initLvgl() {
     buscfg.sclk_io_num     = CYD_PIN_SCLK;
     buscfg.quadwp_io_num   = -1;
     buscfg.quadhd_io_num   = -1;
-    buscfg.max_transfer_sz = CYD_LCD_W * LCD_DRAW_BUFFER_LINES * sizeof(uint16_t);
+    buscfg.max_transfer_sz = CYD_LCD_W * LCD_DRAW_BUFFER_LINES * sizeof(uint16_t) * 2; // *2 for double-buffer
     ESP_ERROR_CHECK(spi_bus_initialize(CYD_SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
     // Panel IO over SPI.
@@ -74,23 +74,22 @@ void CYDDisplayConsumer::initLvgl() {
     // ILI9341 panel.
     esp_lcd_panel_dev_config_t panel_cfg = {};
     panel_cfg.reset_gpio_num = (gpio_num_t)CYD_PIN_RST;
-    panel_cfg.rgb_ele_order  = LCD_RGB_ELEMENT_ORDER_BGR; // CYD is BGR; flip if colors swap
+    panel_cfg.rgb_ele_order  = LCD_RGB_ELEMENT_ORDER_RGB;
     panel_cfg.bits_per_pixel = 16;
     ESP_ERROR_CHECK(esp_lcd_new_panel_ili9341(_ioHandle, &panel_cfg, &_panelHandle));
 
     ESP_ERROR_CHECK(esp_lcd_panel_reset(_panelHandle));
     ESP_ERROR_CHECK(esp_lcd_panel_init(_panelHandle));
     ESP_ERROR_CHECK(esp_lcd_panel_invert_color(_panelHandle, false));
-    ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(_panelHandle, true));
-    ESP_ERROR_CHECK(esp_lcd_panel_mirror(_panelHandle, true, false));
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(_panelHandle, true));
+    // swap_xy / mirror are NOT called here — esp_lvgl_port owns them via disp_cfg.rotation
 
     // LVGL port (owns the LVGL task + tick).
     static bool s_lvgl_inited = false;
     if (!s_lvgl_inited) {
         lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
         port_cfg.task_priority   = 4;
-        port_cfg.task_stack      = 6 * 1024;
+        port_cfg.task_stack      = 8 * 1024;
         port_cfg.timer_period_ms = 5;
         ESP_ERROR_CHECK(lvgl_port_init(&port_cfg));
         s_lvgl_inited = true;
@@ -101,12 +100,13 @@ void CYDDisplayConsumer::initLvgl() {
     disp_cfg.panel_handle   = _panelHandle;
     disp_cfg.buffer_size    = CYD_LCD_W * LCD_DRAW_BUFFER_LINES;
     disp_cfg.double_buffer  = true;
-    disp_cfg.hres           = CYD_LCD_W;
-    disp_cfg.vres           = CYD_LCD_H;
+    disp_cfg.hres           = CYD_LCD_W;  // 320 — hardware swap_xy gives us landscape
+    disp_cfg.vres           = CYD_LCD_H;  // 240
     disp_cfg.monochrome     = false;
-    disp_cfg.rotation.swap_xy  = true;
-    disp_cfg.rotation.mirror_x = true;
+    disp_cfg.rotation.swap_xy  = false;    // landscape: port applies this to panel on every flush
+    disp_cfg.rotation.mirror_x = true;   // adjust if text is mirrored: try (true,false) / (false,true) / (false,false)
     disp_cfg.rotation.mirror_y = false;
+    disp_cfg.flags.buff_dma    = true;    // DMA transfer — CPU-free SPI flush
     disp_cfg.flags.swap_bytes  = true;
     _disp = lvgl_port_add_disp(&disp_cfg);
     if (!_disp) {
@@ -115,7 +115,7 @@ void CYDDisplayConsumer::initLvgl() {
 }
 
 void CYDDisplayConsumer::buildUi() {
-    if (lvgl_port_lock(0) == false) return;
+    if (lvgl_port_lock(portMAX_DELAY) == false) return;
 
     lv_obj_t* scr = lv_display_get_screen_active(_disp);
 
@@ -160,7 +160,7 @@ void CYDDisplayConsumer::buildUi() {
 
 void CYDDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
     if (!_bg) return;
-    if (lvgl_port_lock(0) == false) return;
+    if (lvgl_port_lock(portMAX_DELAY) == false) return;
 
     const uint8_t sr = scale_brightness(r);
     const uint8_t sg = scale_brightness(g);
@@ -187,7 +187,7 @@ void CYDDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
 
 void CYDDisplayConsumer::setText(const char* text, uint8_t index, uint32_t timeout) {
     if (index >= 2) return;
-    if (lvgl_port_lock(0) == false) return;
+    if (lvgl_port_lock(portMAX_DELAY) == false) return;
 
     lv_obj_t*    label  = (index == 0) ? _title         : _subtext;
     lv_timer_t** revert = (index == 0) ? &_titleRevert  : &_subtextRevert;
@@ -235,7 +235,7 @@ void CYDDisplayConsumer::applyTitleForState(TallyState s) {
 void CYDDisplayConsumer::setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) {
     const AlertPatternConfig* cfg = getAlertPattern(action);
     if (!cfg) return;
-    if (lvgl_port_lock(0) == false) return;
+    if (lvgl_port_lock(portMAX_DELAY) == false) return;
 
     lv_obj_t* bars[ZONE_COUNT] = { _borderL, _borderR };
 
@@ -280,12 +280,12 @@ const CYDDisplayConsumer::AlertPatternConfig* CYDDisplayConsumer::getAlertPatter
     static const TallyState INFO[][5]   = {
         { TallyState::NONE, TallyState::NONE, TallyState::NONE, TallyState::NONE },
         { TallyState::INFO, TallyState::NONE, TallyState::INFO, TallyState::NONE },
-        { TallyState::NONE, TallyState::INFO, TallyState::NONE, TallyState::INFO },
+        { TallyState::INFO, TallyState::NONE, TallyState::INFO, TallyState::NONE },
     };
     static const TallyState NORMAL[][5] = {
         { TallyState::NONE,    TallyState::NONE,    TallyState::NONE,    TallyState::NONE },
         { TallyState::WARNING, TallyState::NONE,    TallyState::WARNING, TallyState::NONE },
-        { TallyState::NONE,    TallyState::WARNING, TallyState::NONE,    TallyState::WARNING },
+        { TallyState::WARNING, TallyState::NONE,    TallyState::WARNING, TallyState::NONE },
     };
     static const TallyState PRIO[][5]   = {
         { TallyState::NONE,    TallyState::NONE,    TallyState::NONE,    TallyState::NONE },
