@@ -128,8 +128,9 @@ protected:
 
         if (_alertTask) {
             TaskHandle_t h = _alertTask;
-            _alertTask = nullptr;
-            xTaskNotify(h, 1, eSetBits);
+            _alertTask = nullptr;           // cleared before applyState so consumers
+            xTaskNotify(h, 1, eSetBits);    // see no active alert during the reset
+            applyState(_state);             // reset all zones/LEDs to idle tally state
         }
 
         auto* arg    = new AlertTaskArg;
