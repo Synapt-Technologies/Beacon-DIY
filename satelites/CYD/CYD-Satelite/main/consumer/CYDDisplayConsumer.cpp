@@ -124,14 +124,14 @@ void CYDDisplayConsumer::buildUi() {
     }
 
     _labels[0] = lv_label_create(scr);
-    lv_obj_set_style_text_font(_labels[0], &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_font(_labels[0], &lv_font_montserrat_48, 0);
     lv_obj_set_style_text_color(_labels[0], lv_color_white(), 0);
     lv_label_set_text(_labels[0], "");
     lv_obj_align(_labels[0], LV_ALIGN_CENTER, 0, -16);
 
     _labels[1] = lv_label_create(scr);
     lv_obj_set_style_text_font(_labels[1], &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(_labels[1], lv_color_make(160, 160, 160), 0);
+    lv_obj_set_style_text_color(_labels[1], lv_color_white(), 0);
     lv_label_set_text(_labels[1], "");
     lv_obj_align(_labels[1], LV_ALIGN_CENTER, 0, 20);
 
@@ -159,7 +159,8 @@ void CYDDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
             lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
         }
     }
-    lv_obj_set_style_text_color(_labels[0], contrastTextColor(sr, sg, sb), 0);
+    lv_obj_set_style_text_color(_labels[0], contrastTextColor(sr, sg, sb, 255), 0);
+    lv_obj_set_style_text_color(_labels[1], contrastTextColor(sr, sg, sb, 160), 0);
 
     if (!isRevertPending(0)) applySlot(0);
 
@@ -230,9 +231,9 @@ void CYDDisplayConsumer::applySlot(uint8_t index) {
     lv_label_set_text(_labels[index], getBaseText(index));
 }
 
-lv_color_t CYDDisplayConsumer::contrastTextColor(uint8_t r, uint8_t g, uint8_t b) {
+lv_color_t CYDDisplayConsumer::contrastTextColor(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
     uint16_t y = (r * 299u + g * 587u + b * 114u) / 1000u;
-    return (y > 140) ? lv_color_black() : lv_color_white();
+    return (y > 140) ? lv_color_make(0, 0, 0) : lv_color_make(brightness, brightness, brightness);
 }
 
 // ── Alert pattern table ──────────────────────────────────────────────
