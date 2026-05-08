@@ -11,7 +11,6 @@
 
 namespace {
 constexpr const char* TAG = "CYDDisplay";
-
 constexpr int LCD_PIXEL_CLOCK_HZ    = 80 * 1000 * 1000;
 constexpr int LCD_CMD_BITS          = 8;
 constexpr int LCD_PARAM_BITS        = 8;
@@ -20,7 +19,9 @@ constexpr int LCD_DRAW_BUFFER_LINES = 80;
 
 // ── Construction / destruction ───────────────────────────────────────
 
-CYDDisplayConsumer::CYDDisplayConsumer() {
+CYDDisplayConsumer::CYDDisplayConsumer(const IDisplayConsumer::Zone* zones, uint8_t zoneCount)
+    : _displayZones(zones), _zoneCount(zoneCount) {
+    _zoneObjs = new lv_obj_t*[_zoneCount]();
     rebuildLut();
     initLvgl();
     buildUi();
@@ -31,6 +32,7 @@ CYDDisplayConsumer::~CYDDisplayConsumer() {
     if (_panelHandle) { esp_lcd_panel_del(_panelHandle); }
     if (_ioHandle)    { esp_lcd_panel_io_del(_ioHandle); }
     spi_bus_free(CYD_SPI_HOST);
+    delete[] _zoneObjs;
 }
 
 // ── Hardware / LVGL init ─────────────────────────────────────────────
@@ -76,9 +78,9 @@ void CYDDisplayConsumer::initLvgl() {
     ESP_ERROR_CHECK(esp_lcd_panel_init(_panelHandle));
     ESP_ERROR_CHECK(esp_lcd_panel_invert_color(_panelHandle, false));
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(_panelHandle, true));
-    // swap_xy / mirror owned by esp_lvgl_port via disp_cfg.rotation
+    // swap_xy / mirror are owned by esp_lvgl_port via disp_cfg.rotation
 
-    static bool s_lvgl_inited = false; // singleton — lvgl_port is a global resource
+    static bool s_lvgl_inited = false; // singleton: lvgl_port is a global resource
     if (!s_lvgl_inited) {
         lvgl_port_cfg_t port = ESP_LVGL_PORT_INIT_CONFIG();
         port.task_priority   = 4;
@@ -110,9 +112,9 @@ void CYDDisplayConsumer::buildUi() {
 
     lv_obj_t* scr = lv_display_get_screen_active(_disp);
 
-    for (uint8_t i = 0; i < ZONE_COUNT; i++) {
-        const Zone& z  = ZONES[i];
-        _zoneObjs[i]   = lv_obj_create(scr);
+    for (uint8_t i = 0; i < _zoneCount; i++) {
+        const IDisplayConsumer::Zone& z = _displayZones[i];
+        _zoneObjs[i] = lv_obj_create(scr);
         lv_obj_remove_style_all(_zoneObjs[i]);
         lv_obj_set_size(_zoneObjs[i], z.w, z.h);
         lv_obj_set_pos(_zoneObjs[i],  z.x, z.y);
@@ -121,7 +123,6 @@ void CYDDisplayConsumer::buildUi() {
         lv_obj_remove_flag(_zoneObjs[i], LV_OBJ_FLAG_SCROLLABLE);
     }
 
-    // Labels render above zones (created later = higher z-order in LVGL).
     _labels[0] = lv_label_create(scr);
     lv_obj_set_style_text_font(_labels[0], &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(_labels[0], lv_color_white(), 0);
@@ -140,24 +141,25 @@ void CYDDisplayConsumer::buildUi() {
 // ── IConsumer overrides ──────────────────────────────────────────────
 
 void CYDDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
-    if (!_zoneObjs[0] || !lvgl_port_lock(portMAX_DELAY)) return;
+    if (!_zoneObjs || !lvgl_port_lock(portMAX_DELAY)) return;
 
     const uint8_t sr = scale_brightness(r);
     const uint8_t sg = scale_brightness(g);
     const uint8_t sb = scale_brightness(b);
     const lv_color_t col = lv_color_make(sr, sg, sb);
 
-    for (uint8_t i = 0; i < ZONE_COUNT; i++) {
-        if (ZONES[i].stateColored)
+    for (uint8_t i = 0; i < _zoneCount; i++) {
+        const IDisplayConsumer::Zone& z = _displayZones[i];
+        if (_state < z.minState) {
+            lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
+        } else if (z.stateColored) {
             lv_obj_set_style_bg_color(_zoneObjs[i], col, 0);
+            lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_COVER, 0);
+        } else if (!_alertTask) {
+            lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
+        }
     }
     lv_obj_set_style_text_color(_labels[0], contrastTextColor(sr, sg, sb), 0);
-
-    if (!_alertTask) {
-        for (uint8_t i = 0; i < ZONE_COUNT; i++)
-            if (!ZONES[i].stateColored)
-                lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
-    }
 
     if (!isRevertPending(0)) applySlot(0);
 
@@ -167,36 +169,38 @@ void CYDDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
 void CYDDisplayConsumer::setAlertStep(DeviceAlertAction action,
                                        DeviceAlertTarget target, uint8_t step) {
     const AlertPatternConfig* cfg = getAlertPattern(action);
-    if (!cfg || !lvgl_port_lock(portMAX_DELAY)) return;
+    if (!cfg || !_zoneObjs || !lvgl_port_lock(portMAX_DELAY)) return;
 
-    for (uint8_t z = 0; z < ZONE_COUNT; z++) {
-        if (ZONES[z].target != DeviceAlertTarget::ALL
+    for (uint8_t i = 0; i < _zoneCount; i++) {
+        const IDisplayConsumer::Zone& z = _displayZones[i];
+
+        if (z.alertTarget != DeviceAlertTarget::ALL
             && target != DeviceAlertTarget::ALL
-            && ZONES[z].target != target) continue;
+            && z.alertTarget != target) continue;
 
-        uint8_t v = ZONES[z].alertVariant % cfg->variantCount;
+        uint8_t v = z.alertVariant % cfg->variantCount;
         TallyState s = cfg->patterns[v][step % cfg->patternLen];
 
         if (s == TallyState::NONE) {
-            if (ZONES[z].stateColored) {
+            if (z.stateColored) {
                 uint8_t r, g, b;
                 stateToColor(_state, r, g, b);
-                lv_obj_set_style_bg_color(_zoneObjs[z],
+                lv_obj_set_style_bg_color(_zoneObjs[i],
                     lv_color_make(scale_brightness(r),
                                   scale_brightness(g),
                                   scale_brightness(b)), 0);
-                lv_obj_set_style_bg_opa(_zoneObjs[z], LV_OPA_COVER, 0);
+                lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_COVER, 0);
             } else {
-                lv_obj_set_style_bg_opa(_zoneObjs[z], LV_OPA_TRANSP, 0);
+                lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
             }
         } else {
             uint8_t r, g, b;
             stateToColor(s, r, g, b);
-            lv_obj_set_style_bg_color(_zoneObjs[z],
+            lv_obj_set_style_bg_color(_zoneObjs[i],
                 lv_color_make(scale_brightness(r),
                               scale_brightness(g),
                               scale_brightness(b)), 0);
-            lv_obj_set_style_bg_opa(_zoneObjs[z], LV_OPA_COVER, 0);
+            lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_COVER, 0);
         }
     }
 
@@ -211,7 +215,7 @@ uint8_t CYDDisplayConsumer::getAlertStepCount(DeviceAlertAction action) {
     return getAlertPattern(action)->patternLen;
 }
 
-// ── ISmartConsumer override ──────────────────────────────────────────
+// ── IDisplayConsumer override ────────────────────────────────────────
 
 void CYDDisplayConsumer::onTextChanged(uint8_t index, const char* text) {
     if (index >= 2 || !_labels[index]) return;
@@ -223,22 +227,10 @@ void CYDDisplayConsumer::onTextChanged(uint8_t index, const char* text) {
 // ── Private helpers ──────────────────────────────────────────────────
 
 void CYDDisplayConsumer::applySlot(uint8_t index) {
-    // Call with LVGL lock held.
     const char* t = (getBaseText(index)[0] != '\0')
                     ? getBaseText(index)
                     : (index == 0 ? stateName(_state) : "");
     lv_label_set_text(_labels[index], t);
-}
-
-const char* CYDDisplayConsumer::stateName(TallyState s) {
-    switch (s) {
-        case TallyState::PROGRAM: return "PROGRAM";
-        case TallyState::PREVIEW: return "PREVIEW";
-        case TallyState::INFO:    return "INFO";
-        case TallyState::WARNING: return "WARNING";
-        case TallyState::DANGER:  return "DANGER";
-        default:                  return "";
-    }
 }
 
 lv_color_t CYDDisplayConsumer::contrastTextColor(uint8_t r, uint8_t g, uint8_t b) {
@@ -259,12 +251,12 @@ CYDDisplayConsumer::getAlertPattern(DeviceAlertAction action) {
     static const TallyState INFO[][5]   = {
         { TallyState::NONE, TallyState::NONE, TallyState::NONE, TallyState::NONE },
         { TallyState::INFO, TallyState::NONE, TallyState::INFO, TallyState::NONE },
-        { TallyState::NONE, TallyState::INFO, TallyState::NONE, TallyState::INFO },
+        { TallyState::INFO, TallyState::NONE, TallyState::INFO, TallyState::NONE },
     };
     static const TallyState NORMAL[][5] = {
         { TallyState::NONE,    TallyState::NONE,    TallyState::NONE,    TallyState::NONE },
         { TallyState::WARNING, TallyState::NONE,    TallyState::WARNING, TallyState::NONE },
-        { TallyState::NONE,    TallyState::WARNING, TallyState::NONE,    TallyState::WARNING },
+        { TallyState::WARNING, TallyState::NONE,    TallyState::WARNING, TallyState::NONE },
     };
     static const TallyState PRIO[][5]   = {
         { TallyState::NONE,    TallyState::NONE,    TallyState::NONE,    TallyState::NONE },

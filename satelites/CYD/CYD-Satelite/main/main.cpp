@@ -85,13 +85,19 @@ extern "C" void app_main()
     IBeaconConnection* beacon = new TcpMqttBeaconConnection();
 
     static StripSection ws2812Sections[] = {
-        { 0, 1, DeviceAlertTarget::ALL },
-        { 24, 0, DeviceAlertTarget::ALL },
-        { 40, 2, DeviceAlertTarget::ALL },
+        { 0, 1, DeviceAlertTarget::OPERATOR },
+        { 24, 0, DeviceAlertTarget::OPERATOR },
+        { 40, 2, DeviceAlertTarget::OPERATOR },
     };
     IConsumer* consumer1 = new WS2812Consumer(createLedStrip(), ADD_LED_STRIP_LED_NUMBER, ws2812Sections, 3);
     IConsumer* consumer2 = new SimpleRGBConsumer(FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO, DeviceAlertTarget::OPERATOR);
-    IConsumer* consumer3 = new CYDDisplayConsumer();
+
+    static const IDisplayConsumer::Zone cydZones[] = {
+        {   0,   0, 320, 240,  0, DeviceAlertTarget::TALENT,    TallyState::NONE, true  }, // background (always visible)
+        {   0,   0,  40, 240,  1, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // left alert bar
+        { 280,   0,  40, 240,  2, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // right alert bar
+    };
+    IConsumer* consumer3 = new CYDDisplayConsumer(cydZones, 3);
 
     IConsumer* consumers[] = { consumer1, consumer2, consumer3 };
 
