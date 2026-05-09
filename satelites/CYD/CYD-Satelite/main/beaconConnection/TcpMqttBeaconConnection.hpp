@@ -2,6 +2,7 @@
 
 #include "beaconConnection/IBeaconConnection.hpp"
 #include "mqtt_client.h"
+#include "esp_timer.h"
 #include "esp_log.h"
 #include <cstring>
 #include <cstdio>
@@ -26,12 +27,26 @@ public:
         esp_mqtt_client_register_event(_client,
                                        (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID,
                                        eventHandler, this);
+
+        esp_timer_create_args_t timerArgs = {};
+        timerArgs.callback        = aliveTimerCallback;
+        timerArgs.arg             = this;
+        timerArgs.dispatch_method = ESP_TIMER_TASK;
+        esp_timer_create(&timerArgs, &_aliveTimer);
+
         esp_mqtt_client_start(_client);
         ESP_LOGI(TAG, "Connecting to %s", _url);
     }
 
     void stop() override {
         if (!_client) return;
+
+        if (_aliveTimer) {
+            esp_timer_stop(_aliveTimer);
+            esp_timer_delete(_aliveTimer);
+            _aliveTimer = nullptr;
+        }
+        if (_connected) notifyConnectionStatus(BeaconStatus::DISCONNECTED);
 
         esp_mqtt_client_stop(_client);
         esp_mqtt_client_destroy(_client);
@@ -60,6 +75,7 @@ private:
     char                     _tallyTopic[160] = {};
     char                     _alertTopic[160] = {};
     esp_mqtt_client_handle_t _client          = nullptr;
+    esp_timer_handle_t       _aliveTimer      = nullptr;
 
     void updateSubscriptions() override {
         if (!_client || !_connected) return;
@@ -116,10 +132,14 @@ private:
                 self->_connected     = true;
                 self->_lastKeepAlive = xTaskGetTickCount();
                 self->updateSubscriptions();
+                esp_timer_start_once(self->_aliveTimer, (uint64_t)self->_aliveTimeout * 1000);
+                self->notifyConnectionStatus(BeaconStatus::CONNECTED);
                 ESP_LOGI(TAG, "Connected");
                 break;
             case MQTT_EVENT_DISCONNECTED:
                 self->_connected = false;
+                if (self->_aliveTimer) esp_timer_stop(self->_aliveTimer);
+                self->notifyConnectionStatus(BeaconStatus::DISCONNECTED);
                 ESP_LOGI(TAG, "Disconnected");
                 break;
             case MQTT_EVENT_DATA:
@@ -147,6 +167,17 @@ private:
 
     void onGlobalInfo(const char* data, int len) { // TODO add Beacon info parsing
         _lastKeepAlive = xTaskGetTickCount();
+        if (_aliveTimer) {
+            esp_timer_stop(_aliveTimer);
+            esp_timer_start_once(_aliveTimer, (uint64_t)_aliveTimeout * 1000);
+        }
+    }
+
+    static void aliveTimerCallback(void* arg) {
+        auto* self = static_cast<TcpMqttBeaconConnection*>(arg);
+        self->_connected = false;
+        self->notifyConnectionStatus(BeaconStatus::DISCONNECTED);
+        ESP_LOGW(TAG, "Keep-alive timeout — beacon unreachable");
     }
 
     void onTally(const char* data, int len) {

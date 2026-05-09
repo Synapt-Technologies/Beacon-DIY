@@ -27,15 +27,18 @@ void SateliteOrchestrator::start()
         [this](DeviceAlertAction a, DeviceAlertTarget t, uint32_t ms) { applyAlert(a, t, ms); }
     );
     _beacon.setNameCallback(
-        [this](const char* s, const char* l) { 
+        [this](const char* s, const char* l) {
             Settings::Runtime r = _config.get().runtime;
             strncpy(r.name[0].shortName, s, sizeof(r.name[0].shortName) - 1);
             r.name[0].shortName[sizeof(r.name[0].shortName) - 1] = '\0';
             strncpy(r.name[0].longName, l, sizeof(r.name[0].longName) - 1);
             r.name[0].longName[sizeof(r.name[0].longName) - 1] = '\0';
-            
+
             _config.applyRuntime(r);
         }
+    );
+    _beacon.setConnectionCallback(
+        [this](BeaconStatus s) { onBeaconStatus(s); }
     );
 
     _network.setConnectionCallback( // TODO Check if needed. For the ui? Should it be stored in the INetworkConnection implementation?
@@ -157,6 +160,17 @@ void SateliteOrchestrator::applyAlert(DeviceAlertAction action,
 
 
 // ? Network Callbacks
+
+
+void SateliteOrchestrator::onBeaconStatus(BeaconStatus status)
+{
+    ESP_LOGI(TAG, "Beacon status changed: %d", static_cast<int>(status));
+    _beaconStatus = status;
+
+    if (status != BeaconStatus::CONNECTED) {
+        applyTally(_config.get().runtime.state_on_disconnect);
+    }
+}
 
 
 void SateliteOrchestrator::onNetworkStatus(NetworkStatus status, esp_ip4_addr_t ip)
