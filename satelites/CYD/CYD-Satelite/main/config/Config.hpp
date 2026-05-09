@@ -8,6 +8,7 @@ public:
     using NetworkCb = std::function<void(const Settings::Network&)>;
     using BeaconCb  = std::function<void(const Settings::Beacon&)>;
     using DisplayCb = std::function<void(const Settings::Display&)>;
+    using RuntimeCb = std::function<void(const Settings::Runtime&)>;
 
     explicit Config(ISettingsStore& store);
 
