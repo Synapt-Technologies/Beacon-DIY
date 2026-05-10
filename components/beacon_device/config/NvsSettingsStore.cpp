@@ -43,9 +43,9 @@ bool NvsSettingsStore::load(Settings& out)
             out.display.brightness[i] = brightness;
     }
     
-    for (int i = 0; i < (int)(sizeof(out.display.brightness) / sizeof(out.display.brightness[0])); i++) {
-        str(make_key(key, sizeof(key), "rt_name_s_", static_cast<size_t>(i)),  out.runtime.name[0].shortName, sizeof(out.runtime.name[0].shortName));
-        str(make_key(key, sizeof(key), "rt_name_l_", static_cast<size_t>(i)),  out.runtime.name[0].longName,  sizeof(out.runtime.name[0].longName));
+    for (int i = 0; i < (int)(sizeof(out.runtime.name) / sizeof(out.runtime.name[0])); i++) {
+        str(make_key(key, sizeof(key), "rt_name_s_", static_cast<size_t>(i)),  out.runtime.name[i].shortName, sizeof(out.runtime.name[i].shortName));
+        str(make_key(key, sizeof(key), "rt_name_l_", static_cast<size_t>(i)),  out.runtime.name[i].longName,  sizeof(out.runtime.name[i].longName));
     }
 
     // str("rt_name_short",  out.runtime.name[0].shortName, sizeof(out.runtime.name[0].shortName));
