@@ -8,6 +8,13 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # Use LVGL Kconfig settings instead of lv_conf.h
 CONFIG_LV_CONF_SKIP=y
 
+# Use system malloc (ESP-IDF heap) instead of LVGL's 64 KB static DRAM pool
+CONFIG_LV_USE_BUILTIN_MALLOC=n
+CONFIG_LV_USE_CLIB_MALLOC=y
+
+# Don't compile LVGL example files (they contain large static canvas buffers)
+CONFIG_LV_BUILD_EXAMPLES=n
+
 # Fonts used by CYDDisplayConsumer
 CONFIG_LV_FONT_MONTSERRAT_16=y
 CONFIG_LV_FONT_MONTSERRAT_28=y
