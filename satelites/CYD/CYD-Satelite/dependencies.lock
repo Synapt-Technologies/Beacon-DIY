@@ -1,4 +1,20 @@
 dependencies:
+  esphome/esp-hub75:
+    component_hash: 202ba936d1b18780903b734ce9e40b9ec04114dba7420714743018b3047753a8
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    targets:
+    - esp32
+    - esp32s2
+    - esp32s3
+    - esp32c6
+    - esp32p4
+    version: 0.3.6
   espressif/cjson:
     component_hash: e788323270d90738662d66fffa910bfe1fba019bba087f01557e70c40485b469
     dependencies:
@@ -79,6 +95,7 @@ dependencies:
       type: service
     version: 9.3.0
 direct_dependencies:
+- esphome/esp-hub75
 - espressif/cjson
 - espressif/esp_lcd_ili9341
 - espressif/esp_lvgl_port
@@ -86,6 +103,6 @@ direct_dependencies:
 - espressif/mqtt
 - idf
 - lvgl/lvgl
-manifest_hash: 925ec0aa31608e507dbd5f0c61e253b5962c2560411396a774745314a97c8125
+manifest_hash: 2894bfe6562ef07298af28c9c03dc27091cc8ef2dea6f761870e935d664b81f6
 target: esp32
 version: 3.0.0
