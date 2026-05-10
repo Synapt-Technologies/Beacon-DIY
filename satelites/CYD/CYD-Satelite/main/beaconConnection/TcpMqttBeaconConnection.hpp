@@ -32,16 +32,7 @@ public:
         timerArgs.callback        = aliveTimerCallback;
         timerArgs.arg             = this;
         timerArgs.dispatch_method = ESP_TIMER_TASK;
-
-        esp_err_t err = esp_timer_create(&timerArgs, &_aliveTimer);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to create alive timer: %s", esp_err_to_name(err));
-            _aliveTimer = nullptr;
-            // TODO
-            // esp_mqtt_client_destroy(_client);
-            // _client = nullptr;
-            // return;
-        }
+        esp_timer_create(&timerArgs, &_aliveTimer);
 
         esp_mqtt_client_start(_client);
         ESP_LOGI(TAG, "Connecting to %s", _url);
