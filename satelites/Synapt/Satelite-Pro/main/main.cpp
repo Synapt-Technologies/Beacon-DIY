@@ -14,7 +14,8 @@
 
 extern "C" void app_main()
 {
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
 
     Platform::init();
     
@@ -32,7 +33,7 @@ extern "C" void app_main()
     config.panel_height = 32;
 
     config.scan_wiring = Hub75ScanWiring::STANDARD_TWO_SCAN;
-    config.shift_driver = Hub75ShiftDriver::MBI5124;
+    config.shift_driver = Hub75ShiftDriver::GENERIC;
 
     config.latch_blanking = 1;
     config.double_buffer  = false;
