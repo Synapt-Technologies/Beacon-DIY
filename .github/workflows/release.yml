@@ -66,11 +66,12 @@ jobs:
           NAME="${{ matrix.name }}-${VERSION}"
           BUILDDIR="${{ matrix.path }}/build"
           APP_BIN=$(find "$BUILDDIR" -maxdepth 1 -name "*.bin" -exec basename {} \;)
-          (cd "$BUILDDIR" && zip "$GITHUB_WORKSPACE/${NAME}-flash-bundle.zip" \
+          (cd "$BUILDDIR" && zip -r "$GITHUB_WORKSPACE/${NAME}-flash-bundle.zip" \
             "$APP_BIN" \
-            bootloader/bootloader.bin \
-            partition_table/partition-table.bin \
-            flasher_args.json)
+            bootloader \
+            partition_table \
+            flasher_args.json \
+            flash_args)
 
       - name: Upload artifact for manual runs
         if: github.event_name == 'workflow_dispatch'
