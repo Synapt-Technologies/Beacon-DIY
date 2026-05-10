@@ -53,9 +53,9 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Build ${{ matrix.name }} firmware
-        uses: espressif/esp-idf-ci-action@v1
+        uses: espressif/esp-idf-ci-action@v1.2.0
         with:
-          esp_idf_version: v6.0.1   # bump this when upgrading ESP-IDF
+          esp_idf_version: v6.0.1
           target: ${{ matrix.target }}
           path: ${{ matrix.path }}
           command: idf.py build
