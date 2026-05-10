@@ -20,7 +20,7 @@ extern "C" void app_main()
     
     ISettingsStore* settingsStore = new NvsSettingsStore();
 
-    INetworkConnection* network = new StaWifiConnection("CYD_Satellite");
+    INetworkConnection* network = new StaWifiConnection("Satelite_PRO");
 
     IBeaconConnection* beacon = new TcpMqttBeaconConnection();
 
@@ -64,7 +64,7 @@ extern "C" void app_main()
 
     DeviceProfile profile = DeviceProfile{
         .deviceType = DeviceType::SINGLE_TOPIC,
-        .model = "CYD Satellite",
+        .model = "Satellite PRO",
         .consumerCount = 1,
     };
 
