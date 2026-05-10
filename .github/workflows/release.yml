@@ -55,7 +55,7 @@ jobs:
       - name: Build ${{ matrix.name }} firmware
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.4.1   # bump this when upgrading ESP-IDF
+          esp_idf_version: v6.0.1   # bump this when upgrading ESP-IDF
           target: ${{ matrix.target }}
           path: ${{ matrix.path }}
           command: idf.py build
