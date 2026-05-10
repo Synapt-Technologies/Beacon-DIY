@@ -47,6 +47,18 @@ void ILvglDisplayConsumer::finishInit(lv_display_t* disp) {
 void ILvglDisplayConsumer::buildUi() {
     if (!lvgl_port_lock(portMAX_DELAY)) return;
 
+    if (!_disp) {
+        ESP_LOGE(TAG, "Skipping UI build because display initialization failed");
+        lvgl_port_unlock();
+        return;
+    }
+    lv_obj_t* scr = lv_display_get_screen_active(_disp);
+    if (!scr) {
+        ESP_LOGE(TAG, "Skipping UI build because active screen is unavailable");
+        lvgl_port_unlock();
+        return;
+    }
+
     lv_obj_t* scr = lv_display_get_screen_active(_disp);
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
