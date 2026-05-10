@@ -41,12 +41,18 @@ idf_component_register(
         lvgl__lvgl
         espressif__esp_lcd_ili9341
         espressif__esp_lvgl_port
-    PRIV_REQUIRES
+        # TODO: Move to PRIV_REQUIRES
         nvs_flash
         esp_http_server
         esp_wifi
         esp_netif
         cjson
+    # PRIV_REQUIRES
+    #     nvs_flash
+    #     esp_http_server
+    #     esp_wifi
+    #     esp_netif
+    #     cjson
     EMBED_TXTFILES
         "ui/index.html"
         "ui/ui.css"
