@@ -106,26 +106,5 @@ extern "C" void app_main()
     while (true) {
         vTaskDelay(portMAX_DELAY);
     }
-
-    // // All objects on heap — WifiManager alone is ~1.4 KB due to wifi_ap_record_t[16]
-    // auto* config = new NvsConfig();
-    // config->load();
-
-    // g_layout.parse(config->get().led_layout);
-
-    // led_strip_handle_t strip = createLedStrip();
-    // auto* leds = new CompositeLedController(strip,
-    //                                         FIX_LED_R_GPIO, FIX_LED_G_GPIO, FIX_LED_B_GPIO,
-    //                                         ADD_LED_STRIP_LED_NUMBER,
-    //                                         g_layout,
-    //                                         config->get().led_brightness);
-    // auto* wifi = new WifiManager(config->get());
-    // auto* mqtt = new MqttManager();
-    // auto* web  = new WebServer(*config, *wifi, *mqtt);
-    // auto* app  = new BeaconApp(*leds, *config, *wifi, *mqtt, *web);
-    // web->setBeaconApp(app);
-
-    // app->run(); // spawns tasks then deletes the main task
-
     
 }
