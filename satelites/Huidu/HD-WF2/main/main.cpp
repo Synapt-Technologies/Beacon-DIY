@@ -48,19 +48,19 @@ static inline Hub75Config getHub75Config() {
   config.shift_driver = Hub75ShiftDriver::GENERIC;
 
   // Huidu HD-WF2
-  config.pins.r1 = 2;
-  config.pins.g1 = 6;
-  config.pins.b1 = 10;
-  config.pins.r2 = 3;
-  config.pins.g2 = 7;
-  config.pins.b2 = 11;
-  config.pins.a = 39;
-  config.pins.b = 38;
-  config.pins.c = 37;
-  config.pins.d = 36;
-  config.pins.e = 21;
+  config.pins.r1  = 2;
+  config.pins.g1  = 10;
+  config.pins.b1  = 6;
+  config.pins.r2  = 3;
+  config.pins.g2  = 11;
+  config.pins.b2  = 7;
+  config.pins.a   = 39;
+  config.pins.b   = 38;
+  config.pins.c   = 37;
+  config.pins.d   = 36;
+  config.pins.e   = 21;
   config.pins.lat = 33;
-  config.pins.oe = 35;
+  config.pins.oe  = 35;
   config.pins.clk = 34;
 
 
