@@ -3,8 +3,6 @@
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
 
-LV_FONT_DECLARE(helvatica_140);
-
 namespace {
 constexpr const char* TAG = "Hub75Display";
 }
@@ -14,7 +12,7 @@ constexpr const char* TAG = "Hub75Display";
 Hub75LvglDisplayConsumer::Hub75LvglDisplayConsumer(const Hub75Config& config,
                                                    const IDisplayConsumer::Zone* zones,
                                                    uint8_t zoneCount)
-    : ILvglDisplayConsumer(zones, zoneCount, &helvatica_140, &lv_font_montserrat_28),
+    : ILvglDisplayConsumer(zones, zoneCount, &lv_font_montserrat_16, &lv_font_montserrat_10),
       _config(config),
       _driver(_config)
 {
