@@ -142,7 +142,7 @@ void ILvglDisplayConsumer::setAlertStep(DeviceAlertAction action,
         TallyState s = cfg->patterns[v][step % cfg->patternLen];
 
         if (s == TallyState::NONE) {
-            if (z.stateColored) {
+            if (z.stateColored && _state >= z.minState) {
                 uint8_t r, g, b;
                 stateToColor(_state, r, g, b);
                 lv_obj_set_style_bg_color(_zoneObjs[i],
