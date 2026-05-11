@@ -60,21 +60,26 @@ lv_display_t* Hub75LvglDisplayConsumer::initHardware() {
 
     ensureLvglPortInited();
 
+    if (!lvgl_port_lock(portMAX_DELAY)) {
+        ESP_LOGE(TAG, "Failed to acquire LVGL lock for display init!");
+        return nullptr;
+    }
+
     lv_display_t* disp = lv_display_create(_driver.get_width(), _driver.get_height());
     if (!disp) {
         ESP_LOGE(TAG, "Failed to create LVGL display!");
+        lvgl_port_unlock();
         return nullptr;
     }
 
     lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565);
 
-    // Full-frame buffer: Hub75 has its own hardware frame buffer, so rendering
-    // the whole frame at once then flipping avoids tearing with double buffering.
     lv_draw_buf_t* draw_buf = lv_draw_buf_create(
         _driver.get_width(), _driver.get_height(), LV_COLOR_FORMAT_RGB565, 0);
     if (!draw_buf) {
         ESP_LOGE(TAG, "Failed to create LVGL draw buffer!");
         lv_display_delete(disp);
+        lvgl_port_unlock();
         return nullptr;
     }
 
@@ -83,6 +88,7 @@ lv_display_t* Hub75LvglDisplayConsumer::initHardware() {
     lv_display_set_user_data(disp, this);
     lv_display_set_flush_cb(disp, flushCb);
 
+    lvgl_port_unlock();
     return disp;
 }
 
