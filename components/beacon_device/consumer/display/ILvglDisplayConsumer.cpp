@@ -74,17 +74,19 @@ void ILvglDisplayConsumer::buildUi() {
         lv_obj_remove_flag(_zoneObjs[i], LV_OBJ_FLAG_SCROLLABLE);
     }
 
+    // TODO: Make spacing configurable by the extended classes.
+    const int32_t dh = lv_display_get_vertical_resolution(_disp);
+
     _labels[0] = lv_label_create(scr);
     lv_obj_set_style_text_font(_labels[0], _titleFont, 0);
     lv_obj_set_style_text_color(_labels[0], lv_color_white(), 0);
     lv_label_set_text(_labels[0], "");
-    lv_obj_align(_labels[0], LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(_labels[0], LV_ALIGN_CENTER, 0, dh / -6);
 
     _labels[1] = lv_label_create(scr);
     lv_obj_set_style_text_font(_labels[1], _subtextFont, 0);
     lv_obj_set_style_text_color(_labels[1], lv_color_white(), 0);
     lv_label_set_text(_labels[1], "");
-    const int32_t dh = lv_display_get_vertical_resolution(_disp);
     lv_obj_align(_labels[1], LV_ALIGN_CENTER, 0, dh / 4);
 
     lv_obj_invalidate(lv_display_get_screen_active(_disp));
