@@ -23,5 +23,5 @@ direct_dependencies:
 - esphome/esp-hub75
 - idf
 manifest_hash: 7d94efe46d9acfb0a00b0cbfbe30aca577d14b4a84a7afbbe5f82e3c7edeac18
-target: esp32
+target: esp32s3
 version: 3.0.0

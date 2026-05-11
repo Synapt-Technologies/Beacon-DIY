@@ -9,6 +9,6 @@
   ],
   "idf.currentSetup": "C:\\esp\\v6.0\\esp-idf",
   "idf.openOcdConfigs": [
-    "board/esp32s3-bridge.cfg"
+    "board/esp32s3-builtin.cfg"
   ]
 }
