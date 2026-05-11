@@ -195,9 +195,10 @@ void ILvglDisplayConsumer::applySlot(uint8_t index) {
     lv_label_set_text(_labels[index], getBaseText(index));
 }
 
+// TODO Improve. Take into account the background color in any case.
 lv_color_t ILvglDisplayConsumer::contrastTextColor(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
     uint16_t y = (r * 299u + g * 587u + b * 114u) / 1000u;
-    return (y > 140) ? lv_color_make(0, 0, 0) : lv_color_make(brightness, brightness, brightness);
+    return (y > 180) ? lv_color_make(0, 0, 0) : lv_color_make(brightness, brightness, brightness);
 }
 
 // ── Alert pattern table ──────────────────────────────────────────────
