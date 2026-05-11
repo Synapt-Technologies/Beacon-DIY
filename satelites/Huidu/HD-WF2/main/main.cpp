@@ -17,21 +17,6 @@
 
 #include "orchestrator/SateliteOrchestrator.hpp"
 
-//? START testimports
-
-// #include "hub75.h"
-// #include <lvgl.h>
-// #include <freertos/FreeRTOS.h>  // NOLINT(misc-header-include-cycle)
-// #include <freertos/task.h>
-// #include <freertos/semphr.h>
-
-// ? add below?
-// #include "hub75.h"
-// #include "sdkconfig.h"
-// #include <esp_log.h>
-// #include <cstdio>
-
-//? End testimports
 
 static const char *const TAG = "HD-WF2 Satelite";
 
