@@ -18,8 +18,8 @@ static inline Hub75Config getMenuConfigSettings() {
   Hub75Config config = {};
 
   // Panel dimensions
-  config.panel_width = CONFIG_HUB75_PANEL_WIDTH;
-  config.panel_height = CONFIG_HUB75_PANEL_HEIGHT;
+  config.panel_width = 64;
+  config.panel_height = 32;
 
   // Scan wiring (scan rate is determined automatically from panel_height)
   config.scan_wiring = Hub75ScanWiring::STANDARD_TWO_SCAN;
@@ -53,11 +53,11 @@ static inline Hub75Config getMenuConfigSettings() {
   config.output_clock_speed = Hub75ClockSpeed::HZ_10M;
 
   // Performance settings
-  config.min_refresh_rate = CONFIG_HUB75_MIN_REFRESH_RATE;
-  config.brightness = CONFIG_HUB75_BRIGHTNESS;
+  config.min_refresh_rate = 60;
+  config.brightness = 255;
 
   // Timing settings
-  config.latch_blanking = CONFIG_HUB75_LATCH_BLANKING;
+  config.latch_blanking = 1;
 
   config.double_buffer = false;
 
