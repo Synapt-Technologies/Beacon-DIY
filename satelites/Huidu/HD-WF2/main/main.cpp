@@ -171,11 +171,17 @@ extern "C" void app_main() {
   IBeaconConnection* beacon = new TcpMqttBeaconConnection();
 
   static const IDisplayConsumer::Zone hub75Zones[] = {
-    {   0,   0,     64,  32,  0, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // background (always visible)
-    {   0,   0,     7,   32,  1, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // background (always visible)
-    {   59,  0,     7,   32,  2, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // background (always visible)
+    {    0,  0,  10,  3,  1, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Top Left
+    {    10, 0,  44,  3,  0, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Top Bar
+    {    54, 0,  10,  3,  2, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Top Right
+    {    0, 29,  10,  3,  1, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Bottom Left
+    {   10, 29,  44,  3,  0, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Bottom Bar
+    {   54, 29,  10,  3,  2, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Bottom Right
+    {    0,  3,  10, 26,  1, DeviceAlertTarget::TALENT,    TallyState::PROGRAM, true },  // Left Bar
+    {   54,  3,  10, 26,  2, DeviceAlertTarget::TALENT,    TallyState::PROGRAM, true },  // Right Bar
+    {   10,  3,  44, 26,  0, DeviceAlertTarget::TALENT,    TallyState::PROGRAM, true },  // Center 
   };
-  IConsumer* consumer1 = new Hub75LvglDisplayConsumer(config, hub75Zones, 7, true);
+  IConsumer* consumer1 = new Hub75LvglDisplayConsumer(config, hub75Zones, 9, true);
 
   IConsumer* consumers[] = { consumer1 };
 
