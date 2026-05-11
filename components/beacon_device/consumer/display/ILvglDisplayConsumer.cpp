@@ -93,7 +93,7 @@ void ILvglDisplayConsumer::buildUi() {
 // ── IConsumer overrides ──────────────────────────────────────────────
 
 void ILvglDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
-    if (!_zoneObjs || !lvgl_port_lock(portMAX_DELAY)) return;
+    if (!_zoneObjs || !_labels[0] || !lvgl_port_lock(portMAX_DELAY)) return;
 
     const uint8_t sr = scale_brightness(r);
     const uint8_t sg = scale_brightness(g);
