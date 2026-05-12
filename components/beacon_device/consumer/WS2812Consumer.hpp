@@ -2,48 +2,59 @@
 
 #include "led_strip.h"
 #include "consumer/ILutConsumer.hpp"
-#include "driver/gpio.h"
 #include "freertos/semphr.h"
 
-
-struct StripSection { // Todo: Brightness section? -> Then the way they are iterated would change..
-    uint8_t             startLed;
-    uint8_t             alertPattern;
-    DeviceAlertTarget   target;
+struct StripSection {
+    uint8_t           startLed;
+    uint8_t           alertPattern;
+    DeviceAlertTarget target;
+    TallyState        minState     = TallyState::NONE;  // section off when _state < minState
+    bool              stateColored = true;              // false = section dark during normal tally
 };
 
 class WS2812Consumer : public ILutConsumer {
-
 public:
     WS2812Consumer(led_strip_handle_t strip, uint8_t ledCount, StripSection sections[], uint8_t sectionCount) {
-        _strip = strip;
-        _ledCount = ledCount;
-        _sections = sections;
+        _strip        = strip;
+        _ledCount     = ledCount;
+        _sections     = sections;
         _sectionCount = sectionCount;
-        _mutex = xSemaphoreCreateMutex();
+        _mutex        = xSemaphoreCreateMutex();
     }
     ~WS2812Consumer() {
         if (_mutex) vSemaphoreDelete(_mutex);
     }
 
 private:
+    led_strip_handle_t _strip;
+    int                _ledCount;
+    SemaphoreHandle_t  _mutex;
+    StripSection*      _sections;
+    uint8_t            _sectionCount;
 
-    led_strip_handle_t  _strip;
-    int                 _ledCount;
-    SemaphoreHandle_t   _mutex;
+    uint8_t sectionCount(uint8_t s) const {
+        return (s + 1 < _sectionCount)
+            ? _sections[s + 1].startLed - _sections[s].startLed
+            : static_cast<uint8_t>(_ledCount) - _sections[s].startLed;
+    }
 
-    StripSection* _sections;
-    uint8_t _sectionCount;
-
-
-    void setColor(uint8_t r, uint8_t g, uint8_t b) {
+    //TODO Implement better zones. Probably setColorRange -> setZoneColor?
+    void applyState(TallyState state) override {
+        uint8_t r, g, b;
+        stateToColor(state, r, g, b);
         const uint8_t sr = scale_brightness(r);
         const uint8_t sg = scale_brightness(g);
         const uint8_t sb = scale_brightness(b);
 
         xSemaphoreTake(_mutex, portMAX_DELAY);
-        for (int i = 0; i < _ledCount; i++)
-            led_strip_set_pixel(_strip, i, sr, sg, sb);
+        for (uint8_t s = 0; s < _sectionCount; s++) {
+            const StripSection& sec = _sections[s];
+            const uint8_t start = sec.startLed;
+            const uint8_t count = sectionCount(s);
+            const bool    show  = (state >= sec.minState && sec.stateColored);
+            for (uint8_t i = start; i < start + count; i++)
+                led_strip_set_pixel(_strip, i, show ? sr : 0, show ? sg : 0, show ? sb : 0);
+        }
         led_strip_refresh(_strip);
         xSemaphoreGive(_mutex);
     }
@@ -56,10 +67,9 @@ private:
             led_strip_set_pixel(_strip, i, sr, sg, sb);
     }
 
-
     void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) override {
-        const AlertPatternConfig* config = getAlertPattern(action);
-        if (!config) return;
+        const AlertPattern* pattern = getAlertPattern(action);
+        if (!pattern) return;
 
         xSemaphoreTake(_mutex, portMAX_DELAY);
         for (uint8_t s = 0; s < _sectionCount; s++) {
@@ -67,85 +77,27 @@ private:
             if (sec.target != DeviceAlertTarget::ALL && target != DeviceAlertTarget::ALL && sec.target != target)
                 continue;
 
-            uint8_t start = sec.startLed;
-            uint8_t count = (s + 1 < _sectionCount)
-                ? _sections[s + 1].startLed - start
-                : _ledCount - start;
-
-            uint8_t variantIdx = sec.alertPattern % config->variantCount;
-            TallyState state = config->patterns[variantIdx][step % config->patternLen];
+            const uint8_t start      = sec.startLed;
+            const uint8_t count      = sectionCount(s);
+            const uint8_t variantIdx = sec.alertPattern % pattern->variantCount;
+            const TallyState state   = pattern->patterns[variantIdx][step % pattern->patternLen];
 
             if (state == TallyState::NONE) {
-                state = _state;
+                if (sec.stateColored && _state >= sec.minState) {
+                    uint8_t r, g, b;
+                    stateToColor(_state, r, g, b);
+                    setColorRange(start, count, r, g, b);
+                } else {
+                    for (uint8_t i = start; i < start + count; i++)
+                        led_strip_set_pixel(_strip, i, 0, 0, 0);
+                }
+            } else {
+                uint8_t r, g, b;
+                stateToColor(state, r, g, b);
+                setColorRange(start, count, r, g, b);
             }
-
-            uint8_t r, g, b;
-            stateToColor(state, r, g, b);
-            setColorRange(start, count, r, g, b);
         }
         led_strip_refresh(_strip);
         xSemaphoreGive(_mutex);
-    }
-
-    struct AlertPatternConfig {
-        uint32_t speedMs;
-        const TallyState (*patterns)[5];
-        uint8_t patternLen;
-        uint8_t variantCount;
-    };
-
-    // TODO: Move to IConsumer?
-    uint32_t getAlertStepLength(DeviceAlertAction action) override {
-        const AlertPatternConfig* cfg = getAlertPattern(action);
-        return cfg ? cfg->speedMs : 0;
-    }
-
-    uint8_t getAlertStepCount(DeviceAlertAction action) override {
-        const AlertPatternConfig* cfg = getAlertPattern(action);
-        return cfg ? cfg->patternLen : 1;
-    }
-
-    // Returns nullptr for CLEAR (no pattern). TallyState::NONE = LED off.
-    static const AlertPatternConfig* getAlertPattern(DeviceAlertAction action) {
-
-        static const TallyState IDENT[][5]  = {
-            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
-            { TallyState::PREVIEW,  TallyState::PROGRAM,    TallyState::PREVIEW,    TallyState::PROGRAM },
-            { TallyState::PROGRAM,  TallyState::PREVIEW,    TallyState::PROGRAM,    TallyState::PREVIEW },
-            { TallyState::PROGRAM,  TallyState::NONE,       TallyState::PREVIEW,    TallyState::NONE },
-            { TallyState::NONE,     TallyState::PROGRAM,    TallyState::NONE,       TallyState::PREVIEW },
-        };
-        static const TallyState INFO[][5]   = {
-            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
-            { TallyState::INFO,     TallyState::NONE,       TallyState::INFO,       TallyState::NONE },
-            { TallyState::INFO,     TallyState::NONE,       TallyState::INFO,       TallyState::NONE },
-        };
-        static const TallyState NORMAL[][5] = {
-            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
-            { TallyState::WARNING,  TallyState::NONE,       TallyState::WARNING,    TallyState::NONE },
-            { TallyState::WARNING,  TallyState::NONE,       TallyState::WARNING,    TallyState::NONE },
-        };
-        static const TallyState PRIO[][5]   = {
-            { TallyState::NONE,     TallyState::NONE,       TallyState::NONE,       TallyState::NONE },
-            { TallyState::PROGRAM,  TallyState::WARNING,    TallyState::PROGRAM,    TallyState::WARNING },
-            { TallyState::WARNING,  TallyState::PROGRAM,    TallyState::WARNING,    TallyState::PROGRAM },
-            { TallyState::PROGRAM,  TallyState::NONE,       TallyState::WARNING,    TallyState::NONE },
-            { TallyState::NONE,     TallyState::PROGRAM,    TallyState::NONE,       TallyState::WARNING },
-        };
-
-        static const AlertPatternConfig PATTERNS[] = {
-            { 400, IDENT,  4, 5 },
-            { 300, INFO,   4, 3 },
-            { 400, NORMAL, 4, 3 },
-            { 150, PRIO,   4, 5 },
-        };
-
-        switch (action) {
-            case DeviceAlertAction::IDENT:  return &PATTERNS[0];
-            case DeviceAlertAction::INFO:   return &PATTERNS[1];
-            case DeviceAlertAction::NORMAL: return &PATTERNS[2];
-            case DeviceAlertAction::PRIO:   return &PATTERNS[3];
-            default:                        return nullptr;
-        }
     }
 };

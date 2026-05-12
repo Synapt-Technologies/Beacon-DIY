@@ -3,12 +3,13 @@
 #include "consumer/IConsumer.hpp"
 #include <cmath>
 
-// Base class for consumers that apply per-pixel software brightness via a gamma LUT.
-// Use this for LED consumers (WS2812, SimpleRGB) where no hardware dimming is available.
-// LVGL display consumers (Hub75, ILI9341) use hardware dimming and should NOT inherit this.
+// Capability mixin for consumers that apply per-pixel software brightness via a gamma LUT.
+// Use for LED consumers (WS2812, SimpleRGB). LVGL displays use hardware dimming instead.
 class ILutConsumer : public IConsumer {
 protected:
     ILutConsumer() { rebuildLut(); }
+
+    void applyBrightness(uint8_t /*brightness*/) override { rebuildLut(); }
 
     void rebuildLut() {
         _lut[0] = 0;
@@ -20,12 +21,6 @@ protected:
     }
 
     uint8_t scale_brightness(uint8_t value) const { return _lut[value]; }
-
-    void setBrightness(uint8_t brightness) override {
-        _brightness = brightness;
-        rebuildLut();
-        applyState(_state);
-    }
 
 private:
     uint8_t _lut[256] = {};

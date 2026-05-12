@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "config/Config.cpp"
         "config/NvsSettingsStore.cpp"
+        "consumer/IConsumer.cpp"
         "consumer/IDisplayConsumer.cpp"
         "consumer/display/ILvglDisplayConsumer.cpp"
         "consumer/display/Ili9341LvglDisplayConsumer.cpp"

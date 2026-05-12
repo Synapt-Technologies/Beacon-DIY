@@ -19,10 +19,8 @@ Hub75LvglDisplayConsumer::Hub75LvglDisplayConsumer(const Hub75Config& config,
       _driver(_config)
 {}
 
-void Hub75LvglDisplayConsumer::setBrightness(uint8_t brightness) {
-    _brightness = brightness;
+void Hub75LvglDisplayConsumer::applyBrightness(uint8_t brightness) {
     _driver.set_brightness(brightness);
-    applyState(_state);
 }
 
 Hub75LvglDisplayConsumer::~Hub75LvglDisplayConsumer() {

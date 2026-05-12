@@ -39,11 +39,9 @@ Ili9341LvglDisplayConsumer::~Ili9341LvglDisplayConsumer() {
 
 // ── Hardware init ────────────────────────────────────────────────────
 
-void Ili9341LvglDisplayConsumer::setBrightness(uint8_t brightness) {
-    _brightness = brightness;
+void Ili9341LvglDisplayConsumer::applyBrightness(uint8_t brightness) {
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, brightness);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-    applyState(_state);
 }
 
 lv_display_t* Ili9341LvglDisplayConsumer::initHardware() {

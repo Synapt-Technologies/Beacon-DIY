@@ -94,14 +94,17 @@ void ILvglDisplayConsumer::buildUi() {
 
 // ── IConsumer overrides ──────────────────────────────────────────────
 
-void ILvglDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
+void ILvglDisplayConsumer::applyState(TallyState state) {
     if (!_zoneObjs || !_labels[0] || !lvgl_port_lock(portMAX_DELAY)) return;
+
+    uint8_t r, g, b;
+    stateToColor(state, r, g, b);
 
     const lv_color_t col = lv_color_make(r, g, b);  // raw — hardware dims the entire framebuffer
 
     for (uint8_t i = 0; i < _zoneCount; i++) {
         const IDisplayConsumer::Zone& z = _displayZones[i];
-        if (_state < z.minState) {
+        if (state < z.minState) {
             lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
         } else if (z.stateColored) {
             lv_obj_set_style_bg_color(_zoneObjs[i], col, 0);
@@ -125,7 +128,7 @@ void ILvglDisplayConsumer::setColor(uint8_t r, uint8_t g, uint8_t b) {
 
 void ILvglDisplayConsumer::setAlertStep(DeviceAlertAction action,
                                         DeviceAlertTarget target, uint8_t step) {
-    const AlertPatternConfig* cfg = getAlertPattern(action);
+    const AlertPattern* cfg = getAlertPattern(action);
     if (!cfg || !_zoneObjs || !lvgl_port_lock(portMAX_DELAY)) return;
 
     for (uint8_t i = 0; i < _zoneCount; i++) {
@@ -160,17 +163,6 @@ void ILvglDisplayConsumer::setAlertStep(DeviceAlertAction action,
     lvgl_port_unlock();
 }
 
-// TODO: Move to IConsumer?
-uint32_t ILvglDisplayConsumer::getAlertStepLength(DeviceAlertAction action) {
-    const AlertPatternConfig* cfg = getAlertPattern(action);
-    return cfg ? cfg->speedMs : 0;
-}
-
-uint8_t ILvglDisplayConsumer::getAlertStepCount(DeviceAlertAction action) {
-    const AlertPatternConfig* cfg = getAlertPattern(action);
-    return cfg ? cfg->patternLen : 1;
-}
-
 // ── IDisplayConsumer override ────────────────────────────────────────
 
 void ILvglDisplayConsumer::onTextChanged(uint8_t index, const char* text) {
@@ -193,44 +185,3 @@ lv_color_t ILvglDisplayConsumer::contrastTextColor(uint8_t r, uint8_t g, uint8_t
     return (y > 180) ? lv_color_make(0, 0, 0) : lv_color_make(brightness, brightness, brightness);
 }
 
-// ── Alert pattern table ──────────────────────────────────────────────
-
-const ILvglDisplayConsumer::AlertPatternConfig*
-ILvglDisplayConsumer::getAlertPattern(DeviceAlertAction action) {
-
-    static const TallyState IDENT[][5]  = {
-        { TallyState::NONE,    TallyState::NONE,    TallyState::NONE,    TallyState::NONE },
-        { TallyState::PREVIEW, TallyState::PROGRAM, TallyState::PREVIEW, TallyState::PROGRAM },
-        { TallyState::PROGRAM, TallyState::PREVIEW, TallyState::PROGRAM, TallyState::PREVIEW },
-    };
-    static const TallyState INFO[][5]   = {
-        { TallyState::NONE, TallyState::NONE, TallyState::NONE, TallyState::NONE },
-        { TallyState::INFO, TallyState::NONE, TallyState::INFO, TallyState::NONE },
-        { TallyState::INFO, TallyState::NONE, TallyState::INFO, TallyState::NONE },
-    };
-    static const TallyState NORMAL[][5] = {
-        { TallyState::NONE,    TallyState::NONE,    TallyState::NONE,    TallyState::NONE },
-        { TallyState::WARNING, TallyState::NONE,    TallyState::WARNING, TallyState::NONE },
-        { TallyState::WARNING, TallyState::NONE,    TallyState::WARNING, TallyState::NONE },
-    };
-    static const TallyState PRIO[][5]   = {
-        { TallyState::NONE,    TallyState::NONE,    TallyState::NONE,    TallyState::NONE },
-        { TallyState::PROGRAM, TallyState::WARNING, TallyState::PROGRAM, TallyState::WARNING },
-        { TallyState::WARNING, TallyState::PROGRAM, TallyState::WARNING, TallyState::PROGRAM },
-    };
-
-    static const AlertPatternConfig PATTERNS[] = {
-        { 400, IDENT,  4, 3 },
-        { 300, INFO,   4, 3 },
-        { 400, NORMAL, 4, 3 },
-        { 150, PRIO,   4, 3 },
-    };
-
-    switch (action) {
-        case DeviceAlertAction::IDENT:  return &PATTERNS[0];
-        case DeviceAlertAction::INFO:   return &PATTERNS[1];
-        case DeviceAlertAction::NORMAL: return &PATTERNS[2];
-        case DeviceAlertAction::PRIO:   return &PATTERNS[3];
-        default:                        return nullptr;
-    }
-}

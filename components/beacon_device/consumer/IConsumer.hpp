@@ -15,8 +15,14 @@ public:
 
     virtual void init() {}
 
-    // Sets all LEDs regardless of target
-    virtual void setState(const TallyState state) {
+    struct AlertPattern {
+        uint32_t speedMs;
+        const TallyState (*patterns)[8];  // [variant][step], up to 8 steps
+        uint8_t variantCount;
+        uint8_t patternLen;
+    };
+
+    void setState(const TallyState state) {
         _state = state;
         if (_alertTask) {
             xTaskNotify(_alertTask, 2, eSetBits);
@@ -25,27 +31,29 @@ public:
         applyState(state);
     }
 
-    virtual void setAlert(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
+    void setAlert(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
         if (action == DeviceAlertAction::CLEAR) {
             this->stopAlertTask();
         } else {
             this->startAlertTask(action, target, timeout);
         }
-    };
+    }
 
-    virtual void setBrightness(uint8_t brightness) {
+    void setBrightness(uint8_t brightness) {
         _brightness = brightness;
+        applyBrightness(brightness);
         this->applyState(this->_state);
     }
 
 protected:
-    uint8_t _brightness = 255;
-    TallyState _state = TallyState::NONE;
-
+    uint8_t    _brightness = 255;
+    TallyState _state      = TallyState::NONE;
     TaskHandle_t _alertTask = {};
 
-    virtual void setColor(uint8_t r, uint8_t g, uint8_t b) = 0;
-    
+    virtual void applyState(TallyState state) = 0;
+
+    virtual void applyBrightness(uint8_t /*brightness*/) {}
+
     static void stateToColor(TallyState state, uint8_t& r, uint8_t& g, uint8_t& b) {
         switch (state) {
             case TallyState::DANGER:
@@ -57,11 +65,19 @@ protected:
         }
     }
 
-    void applyState(TallyState state) {
-        uint8_t r, g, b;
-        stateToColor(state, r, g, b);
-        this->setColor(r, g, b);
+    // Unified alert pattern table — shared by all consumers. Implemented in IConsumer.cpp.
+    static const AlertPattern* getAlertPattern(DeviceAlertAction action);
+
+    uint32_t getAlertStepLength(DeviceAlertAction action) {
+        const AlertPattern* p = getAlertPattern(action);
+        return p ? p->speedMs : 0;
     }
+    uint8_t getAlertStepCount(DeviceAlertAction action) {
+        const AlertPattern* p = getAlertPattern(action);
+        return p ? p->patternLen : 1;
+    }
+
+    virtual void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) = 0;
 
     struct AlertTaskArg {
         IConsumer* self;
@@ -110,17 +126,12 @@ protected:
         vTaskDelete(nullptr);
     }
 
-    virtual uint32_t getAlertStepLength(DeviceAlertAction action) = 0;
-    virtual uint8_t getAlertStepCount(DeviceAlertAction action) = 0;
-    virtual void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) = 0;
-
     void startAlertTask(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
-
         if (_alertTask) {
             TaskHandle_t h = _alertTask;
-            _alertTask = nullptr;           // cleared before applyState so consumers
-            xTaskNotify(h, 1, eSetBits);    // see no active alert during the reset
-            applyState(_state);             // reset all zones/LEDs to idle tally state
+            _alertTask = nullptr;
+            xTaskNotify(h, 1, eSetBits);
+            applyState(_state);
         }
 
         auto* arg    = new AlertTaskArg;
@@ -130,18 +141,12 @@ protected:
         arg->timeout = timeout;
 
         xTaskCreate(alertTask, "led_pat", 4096, arg, 18, &_alertTask);
-    };
+    }
 
     void stopAlertTask() {
-
         if (!_alertTask) return;
-
         TaskHandle_t h = _alertTask;
         _alertTask = nullptr;
         xTaskNotify(h, 1, eSetBits);
-    };
-
-
-
+    }
 };
-
