@@ -10,8 +10,7 @@ constexpr const char* TAG = "Hub75Display";
 // ── Construction / destruction ───────────────────────────────────────
 
 static const ILvglDisplayConsumer::FontConfig LABELS[] = {
-    { &lv_font_montserrat_22, 255, LV_ALIGN_CENTER, 0, -5 },
-    { &lv_font_unscii_8,      100, LV_ALIGN_CENTER, 0,  8 },
+    { &lv_font_montserrat_28, 255, LV_ALIGN_CENTER, 0, 0 },
 };
 
 Hub75LvglDisplayConsumer::Hub75LvglDisplayConsumer(const Hub75Config& config,
