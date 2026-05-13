@@ -76,6 +76,9 @@ static const AutoFontEntry k_autoFonts[] = {
 #if LV_FONT_MONTSERRAT_12
     {  12, &lv_font_montserrat_12 },
 #endif
+#if LV_FONT_UNSCII_8
+    {   8, &lv_font_unscii_8 },
+#endif
 };
 constexpr size_t k_autoFontCount = sizeof(k_autoFonts) / sizeof(k_autoFonts[0]);
 }
