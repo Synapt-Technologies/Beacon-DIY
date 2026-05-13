@@ -14,6 +14,12 @@ public:
 
         virtual const lv_font_t* resolveFont(const char* text, lv_display_t* disp) const = 0;
         virtual ~TextConfig() = default;
+
+    protected:
+        TextConfig() = default;
+        TextConfig(uint8_t brightness_, lv_align_t align_, int32_t x_ofs_, int32_t y_ofs_, uint8_t strokeWidth_)
+            : brightness(brightness_), align(align_), x_ofs(x_ofs_), y_ofs(y_ofs_), strokeWidth(strokeWidth_)
+        {}
     };
 
     struct FixedTextConfig : TextConfig {
@@ -25,14 +31,8 @@ public:
                         int32_t x_ofs_      = 0,
                         int32_t y_ofs_      = 0,
                         uint8_t strokeWidth_= 0)
-            : font(f)
-        {
-            brightness  = brightness_;
-            align       = align_;
-            x_ofs       = x_ofs_;
-            y_ofs       = y_ofs_;
-            strokeWidth = strokeWidth_;
-        }
+            : TextConfig(brightness_, align_, x_ofs_, y_ofs_, strokeWidth_), font(f)
+        {}
 
         const lv_font_t* resolveFont(const char*, lv_display_t*) const override { return font; }
     };
@@ -48,14 +48,9 @@ public:
                        uint8_t strokeWidth_ = 0,
                        uint8_t minSize_     = 0,
                        uint8_t maxSize_     = 0)
-            : maxSize(maxSize_), minSize(minSize_)
-        {
-            brightness  = brightness_;
-            align       = align_;
-            x_ofs       = x_ofs_;
-            y_ofs       = y_ofs_;
-            strokeWidth = strokeWidth_;
-        }
+            : TextConfig(brightness_, align_, x_ofs_, y_ofs_, strokeWidth_),
+              maxSize(maxSize_), minSize(minSize_)
+        {}
 
         const lv_font_t* resolveFont(const char* text, lv_display_t* disp) const override;
     };
