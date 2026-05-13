@@ -12,6 +12,7 @@
 #include "networkConnection/StaWifiConnection.hpp"
 #include "beaconConnection/TcpMqttBeaconConnection.hpp"
 #include "consumer/display/Hub75LvglDisplayConsumer.hpp"
+#include "consumer/WS2812Consumer.hpp"
 #include "consumer/IDisplayConsumer.hpp"
 #include "httpServer/EspHttpServer.hpp"
 
@@ -19,6 +20,29 @@
 
 
 static const char *const TAG = "HD-WF2 Satelite";
+
+#define ADD_LED_STRIP_GPIO       8
+#define ADD_LED_STRIP_LED_NUMBER 6
+
+static led_strip_handle_t createLedStrip()
+{
+    led_strip_config_t stripCfg = {
+        ADD_LED_STRIP_GPIO,
+        ADD_LED_STRIP_LED_NUMBER,
+        LED_MODEL_WS2812,
+        LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+        { false },
+    };
+    led_strip_spi_config_t spiCfg = {
+        SPI_CLK_SRC_DEFAULT,
+        SPI2_HOST,
+        { true },
+    };
+    led_strip_handle_t strip;
+    ESP_ERROR_CHECK(led_strip_new_spi_device(&stripCfg, &spiCfg, &strip));
+    return strip;
+}
+
 
 static inline Hub75Config getHub75Config() {
   Hub75Config config = {};
@@ -81,9 +105,9 @@ extern "C" void app_main() {
 
   vTaskDelay(pdMS_TO_TICKS(100));
   
-  Hub75Config config = getHub75Config();
-
   Platform::init();
+  
+  Hub75Config config = getHub75Config();
 
   ISettingsStore* settingsStore = new NvsSettingsStore();
 
@@ -91,6 +115,8 @@ extern "C" void app_main() {
 
   IBeaconConnection* beacon = new TcpMqttBeaconConnection();
 
+
+  //? Consumers
   static const IDisplayConsumer::Zone hub75Zones[] = {
     {    0,  0,  10,  3,  1, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Top Left
     {    10, 0,  44,  3,  0, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Top Bar
@@ -114,18 +140,30 @@ extern "C" void app_main() {
   //   {   10,  3,  44, 26,  0, DeviceAlertTarget::TALENT,    TallyState::PROGRAM, true },  // Center 
   // };
   // static const ILvglDisplayConsumer::FixedTextConfig text0 { &lv_font_montserrat_32, 255, LV_ALIGN_CENTER, 0, 0, 1 };
-  static const ILvglDisplayConsumer::AutoTextConfig text0 { 255, LV_ALIGN_CENTER, 0, 0, 1, 12, 0, 60, 30, false };
+  static const ILvglDisplayConsumer::AutoTextConfig text0 { 255, LV_ALIGN_CENTER, 0, -1, 1, 12, 0, 62, 30, false };
   static const ILvglDisplayConsumer::TextConfig* const textConf[] = { &text0 };
   IConsumer* consumer1 = new Hub75LvglDisplayConsumer(config, hub75Zones, 9, textConf, 1);
 
-  IConsumer* consumers[] = { consumer1 };
+  static StripSection ws2812Sections[] = {
+    { 0, 0, DeviceAlertTarget::OPERATOR },
+    { 1, 2, DeviceAlertTarget::OPERATOR },
+    { 2, 0, DeviceAlertTarget::OPERATOR },
+    { 3, 0, DeviceAlertTarget::OPERATOR },
+    { 4, 1, DeviceAlertTarget::OPERATOR },
+    { 5, 0, DeviceAlertTarget::OPERATOR },
+  };
+  IConsumer* consumer2 = new WS2812Consumer(createLedStrip(), ADD_LED_STRIP_LED_NUMBER, ws2812Sections, 6);
+
+
+
+  IConsumer* consumers[] = { consumer1, consumer2 };
 
   EspHttpServer httpServer = EspHttpServer();
 
   DeviceProfile profile = DeviceProfile{
     .deviceType = DeviceType::SINGLE_TOPIC,
     .model = "HD-WF2 Satellite",
-    .consumerCount = 1,
+    .consumerCount = 2,
   };
 
   SateliteOrchestrator orchestrator = SateliteOrchestrator(*settingsStore, profile, *network, *beacon, consumers, profile.consumerCount, httpServer);

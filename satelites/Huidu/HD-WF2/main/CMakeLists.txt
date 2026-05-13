@@ -4,6 +4,6 @@ idf_component_register(
     INCLUDE_DIRS "."
     REQUIRES 
         beacon_device    
-        esp-hub75 lvgl
+        esp-hub75 led_strip
 )
 # TODO Cleanup esp-hub75 lvgl
