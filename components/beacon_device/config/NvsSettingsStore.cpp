@@ -56,6 +56,9 @@ bool NvsSettingsStore::load(Settings& out)
     uint8_t raw = 0;
     if (u8("rt_st_disc", &raw) == ESP_OK)
         out.runtime.state_on_disconnect = static_cast<TallyState>(raw);
+    uint8_t flip = 0;
+    if (u8("rt_flip_sides", &flip) == ESP_OK)
+        out.runtime.flip_sides = flip != 0;
 
     nvs_close(h);
     
@@ -99,7 +102,8 @@ bool NvsSettingsStore::save(const Settings& in)
     // if (err == ESP_OK) err = nvs_set_str(h, "rt_name_short", in.runtime.name[0].shortName);
     // if (err == ESP_OK) err = nvs_set_str(h, "rt_name_long",  in.runtime.name[0].longName);
     if (err == ESP_OK) err = u8("rt_brightness", in.runtime.brightness);
-    if (err == ESP_OK) err = u8("rt_st_disc", static_cast<uint8_t>(in.runtime.state_on_disconnect));
+    if (err == ESP_OK) err = u8("rt_st_disc",    static_cast<uint8_t>(in.runtime.state_on_disconnect));
+    if (err == ESP_OK) err = u8("rt_flip_sides", in.runtime.flip_sides ? 1u : 0u);
 
     if (err == ESP_OK) err = nvs_commit(h);
 

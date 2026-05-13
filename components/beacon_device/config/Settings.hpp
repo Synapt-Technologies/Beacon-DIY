@@ -28,6 +28,7 @@ struct Settings {
             char longName[32]  = {"Beacon Satelite"};
         } name[8];
         TallyState state_on_disconnect = TallyState::WARNING;
+        bool flip_sides = false; // Flip operator and presenter side.
     } runtime;
 
     char deviceName[32] = "Beacon Satellite";
