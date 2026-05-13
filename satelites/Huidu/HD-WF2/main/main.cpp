@@ -192,10 +192,10 @@ extern "C" void app_main() {
   //   {   54,  3,  10, 26,  2, DeviceAlertTarget::TALENT,    TallyState::NONE,    true },  // Right Bar
   //   {   10,  3,  44, 26,  0, DeviceAlertTarget::TALENT,    TallyState::PROGRAM, true },  // Center 
   // };
-  static const ILvglDisplayConsumer::FixedTextConfig hub75Text0 { &lv_font_montserrat_28, 255, LV_ALIGN_CENTER, 0, 0, 1 };
-  // static const ILvglDisplayConsumer::AutoTextConfig hub75Text0 { 255, LV_ALIGN_CENTER, 0, 0, 1, 18, 28 };
-  static const ILvglDisplayConsumer::TextConfig* const hub75Text[] = { &hub75Text0 };
-  IConsumer* consumer1 = new Hub75LvglDisplayConsumer(config, hub75Zones, 9, hub75Text, 1);
+  // static const ILvglDisplayConsumer::FixedTextConfig text0 { &lv_font_montserrat_28, 255, LV_ALIGN_CENTER, 0, 0, 1 };
+  static const ILvglDisplayConsumer::AutoTextConfig text0 { 255, LV_ALIGN_CENTER, 0, 0, 1, 18, 28 };
+  static const ILvglDisplayConsumer::TextConfig* const textConf[] = { &text0 };
+  IConsumer* consumer1 = new Hub75LvglDisplayConsumer(config, hub75Zones, 9, textConf, 1);
 
   IConsumer* consumers[] = { consumer1 };
 

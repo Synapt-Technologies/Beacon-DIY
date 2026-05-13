@@ -1,13 +1,31 @@
+config BEACON_MAX_FONT_SIZE
+    int "Maximum font pixel height to compile in"
+    default 140
+    range 0 255
+    help
+        Fonts taller than this are excluded from the auto-size registry
+        and not linked into the binary. 0 excludes all fonts.
+
+config BEACON_MIN_FONT_SIZE
+    int "Minimum font pixel height to compile in"
+    default 0
+    range 0 255
+    help
+        Fonts shorter than this are excluded. 0 means no lower limit.
+
 # Hidden symbol — exists only to pull in LVGL dependencies required by the
 # beacon_device display consumers via Kconfig's select mechanism.
+# Selects are conditional so only fonts within [MIN, MAX] are enabled.
 config BEACON_DEVICE_LVGL_DEPS
     bool
     default y
     select LV_CONF_SKIP
     select LV_FONT_UNSCII_8
-    select LV_FONT_MONTSERRAT_10
-    select LV_FONT_MONTSERRAT_16
-    select LV_FONT_MONTSERRAT_22
-    select LV_FONT_MONTSERRAT_28
-    select LV_FONT_MONTSERRAT_34
-    select LV_FONT_MONTSERRAT_48
+    select LV_FONT_MONTSERRAT_10 if BEACON_MAX_FONT_SIZE >= 10 && BEACON_MIN_FONT_SIZE <= 10
+    select LV_FONT_MONTSERRAT_16 if BEACON_MAX_FONT_SIZE >= 16 && BEACON_MIN_FONT_SIZE <= 16
+    select LV_FONT_MONTSERRAT_22 if BEACON_MAX_FONT_SIZE >= 22 && BEACON_MIN_FONT_SIZE <= 22
+    select LV_FONT_MONTSERRAT_28 if BEACON_MAX_FONT_SIZE >= 28 && BEACON_MIN_FONT_SIZE <= 28
+    select LV_FONT_MONTSERRAT_34 if BEACON_MAX_FONT_SIZE >= 34 && BEACON_MIN_FONT_SIZE <= 34
+    select LV_FONT_MONTSERRAT_40 if BEACON_MAX_FONT_SIZE >= 40 && BEACON_MIN_FONT_SIZE <= 40
+    select LV_FONT_MONTSERRAT_44 if BEACON_MAX_FONT_SIZE >= 44 && BEACON_MIN_FONT_SIZE <= 44
+    select LV_FONT_MONTSERRAT_48 if BEACON_MAX_FONT_SIZE >= 48 && BEACON_MIN_FONT_SIZE <= 48

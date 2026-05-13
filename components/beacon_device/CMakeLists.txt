@@ -1,3 +1,20 @@
+if(NOT DEFINED CONFIG_BEACON_MAX_FONT_SIZE)
+    set(CONFIG_BEACON_MAX_FONT_SIZE 140)
+endif()
+if(NOT DEFINED CONFIG_BEACON_MIN_FONT_SIZE)
+    set(CONFIG_BEACON_MIN_FONT_SIZE 0)
+endif()
+
+set(HELVATICA_FONT_SRCS "")
+foreach(sz 60 80 100 120 130 140)
+    set(_font_file "consumer/display/fonts/helvatica_${sz}.c")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_font_file}"
+       AND NOT ${sz} GREATER ${CONFIG_BEACON_MAX_FONT_SIZE}
+       AND NOT ${sz} LESS ${CONFIG_BEACON_MIN_FONT_SIZE})
+        list(APPEND HELVATICA_FONT_SRCS "${_font_file}")
+    endif()
+endforeach()
+
 idf_component_register(
     SRCS
         "config/Config.cpp"
@@ -7,7 +24,7 @@ idf_component_register(
         "consumer/display/ILvglDisplayConsumer.cpp"
         "consumer/display/Ili9341LvglDisplayConsumer.cpp"
         "consumer/display/Hub75LvglDisplayConsumer.cpp"
-        "consumer/display/fonts/helvatica_140.c"
+        ${HELVATICA_FONT_SRCS}
         "platform/Platform.cpp"
         "httpServer/EspHttpServer.cpp"
         "httpServer/HttpHandlers.cpp"
@@ -69,3 +86,10 @@ idf_component_register(
         "ui/ui.css"
         "ui/ui.js"
 )
+
+foreach(sz 60 80 100 120 130 140)
+    set(_font_file "consumer/display/fonts/helvatica_${sz}.c")
+    if("${_font_file}" IN_LIST HELVATICA_FONT_SRCS)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC HELVATICA_FONT_${sz}=1)
+    endif()
+endforeach()
