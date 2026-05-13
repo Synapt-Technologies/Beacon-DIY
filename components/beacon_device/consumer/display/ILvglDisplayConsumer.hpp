@@ -6,12 +6,58 @@
 class ILvglDisplayConsumer : public IDisplayConsumer {
 public:
     struct TextConfig {
-        const lv_font_t* font;
         uint8_t    brightness  = 255;
         lv_align_t align       = LV_ALIGN_CENTER;
         int32_t    x_ofs       = 0;
         int32_t    y_ofs       = 0;
         uint8_t    strokeWidth = 0;
+
+        virtual const lv_font_t* resolveFont(const char* text, lv_display_t* disp) const = 0;
+        virtual ~TextConfig() = default;
+    };
+
+    struct FixedTextConfig : TextConfig {
+        const lv_font_t* font;
+
+        FixedTextConfig(const lv_font_t* f,
+                        uint8_t brightness_ = 255,
+                        lv_align_t align_   = LV_ALIGN_CENTER,
+                        int32_t x_ofs_      = 0,
+                        int32_t y_ofs_      = 0,
+                        uint8_t strokeWidth_= 0)
+            : font(f)
+        {
+            brightness  = brightness_;
+            align       = align_;
+            x_ofs       = x_ofs_;
+            y_ofs       = y_ofs_;
+            strokeWidth = strokeWidth_;
+        }
+
+        const lv_font_t* resolveFont(const char*, lv_display_t*) const override { return font; }
+    };
+
+    struct AutoTextConfig : TextConfig {
+        uint8_t maxSize = 0;
+        uint8_t minSize = 0;
+
+        AutoTextConfig(uint8_t brightness_  = 255,
+                       lv_align_t align_    = LV_ALIGN_CENTER,
+                       int32_t x_ofs_       = 0,
+                       int32_t y_ofs_       = 0,
+                       uint8_t strokeWidth_ = 0,
+                       uint8_t maxSize_     = 0,
+                       uint8_t minSize_     = 0)
+            : maxSize(maxSize_), minSize(minSize_)
+        {
+            brightness  = brightness_;
+            align       = align_;
+            x_ofs       = x_ofs_;
+            y_ofs       = y_ofs_;
+            strokeWidth = strokeWidth_;
+        }
+
+        const lv_font_t* resolveFont(const char* text, lv_display_t* disp) const override;
     };
 
     ~ILvglDisplayConsumer() override;
@@ -22,7 +68,7 @@ public:
 
 protected:
     ILvglDisplayConsumer(const IDisplayConsumer::Zone* zones, uint8_t zoneCount,
-                         const TextConfig* textConfigs, uint8_t textCount);
+                         const TextConfig* const* textConfigs, uint8_t textCount);
 
     virtual lv_display_t* initHardware() = 0;
 
@@ -46,8 +92,8 @@ private:
     static lv_color_t contrastStrokeColor(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness = 255);
 
     const IDisplayConsumer::Zone* _displayZones;
-    uint8_t           _zoneCount;
-    const TextConfig* _textConfigs;   // non-owning
+    uint8_t                 _zoneCount;
+    const TextConfig* const* _textConfigs;   // non-owning
     uint8_t           _textCount;
 
     lv_obj_t** _zoneObjs     = nullptr;

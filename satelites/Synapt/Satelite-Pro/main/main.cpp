@@ -303,9 +303,8 @@ extern "C" void app_main()
     static const IDisplayConsumer::Zone hub75Zones[] = {
         {   0,   0,     64,  32,  1, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // background (always visible)
     };
-    static const ILvglDisplayConsumer::TextConfig hub75Text[] = {
-        { &lv_font_montserrat_28, 255, LV_ALIGN_CENTER, 0, 0 },
-    };
+    static const ILvglDisplayConsumer::FixedTextConfig hub75Text0 { &lv_font_montserrat_28, 255, LV_ALIGN_CENTER, 0, 0 };
+    static const ILvglDisplayConsumer::TextConfig* const hub75Text[] = { &hub75Text0 };
 
     IConsumer* consumer1 = new Hub75LvglDisplayConsumer(config, hub75Zones, 1, hub75Text, 1);
     IConsumer* consumers[] = { consumer1 };

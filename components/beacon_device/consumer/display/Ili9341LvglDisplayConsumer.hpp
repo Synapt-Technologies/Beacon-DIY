@@ -19,7 +19,7 @@ public:
 
     // Zones are owned by the caller and must outlive this object.
     Ili9341LvglDisplayConsumer(const IDisplayConsumer::Zone* zones, uint8_t zoneCount,
-                               const ILvglDisplayConsumer::TextConfig* textConfigs, uint8_t textCount);
+                               const ILvglDisplayConsumer::TextConfig* const* textConfigs, uint8_t textCount);
     ~Ili9341LvglDisplayConsumer() override;
 
     void applyBrightness(uint8_t brightness) override;

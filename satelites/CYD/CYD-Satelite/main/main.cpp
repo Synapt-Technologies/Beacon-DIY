@@ -78,17 +78,16 @@ extern "C" void app_main()
     LV_FONT_DECLARE(helvatica_140);
     static const IDisplayConsumer::Zone cydZones[] = {
         {   0,   0,     320,  240,  0, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // background (always visible)
-        {   0,   0,      40,  240,  1, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // left top 
+        {   0,   0,      40,  240,  1, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // left top
         {  40,   0,     120,   10,  1, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // left bottom
         {  40,   230,   120,   10,  1, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // left side
         { 280,   0,      40,  240,  2, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // right top
         { 160,   0,     120,   10,  2, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // right bottom
         { 160,   230,   120,   10,  2, DeviceAlertTarget::TALENT,    TallyState::NONE, true }, // left side
     };
-    static const ILvglDisplayConsumer::TextConfig cydText[] = {
-        { &helvatica_140,         255, LV_ALIGN_CENTER, 0,  0 },
-        { &lv_font_montserrat_28, 80, LV_ALIGN_CENTER, 0, 70 },
-    };
+    static const ILvglDisplayConsumer::FixedTextConfig cydText0 { &helvatica_140,         255, LV_ALIGN_CENTER, 0,  0 };
+    static const ILvglDisplayConsumer::FixedTextConfig cydText1 { &lv_font_montserrat_28,  80, LV_ALIGN_CENTER, 0, 70 };
+    static const ILvglDisplayConsumer::TextConfig* const cydText[] = { &cydText0, &cydText1 };
     IConsumer* consumer3 = new Ili9341LvglDisplayConsumer(cydZones, 7, cydText, 2);
 
     IConsumer* consumers[] = { consumer1, consumer2, consumer3 };

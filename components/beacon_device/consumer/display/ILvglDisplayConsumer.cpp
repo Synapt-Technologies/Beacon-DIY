@@ -2,17 +2,109 @@
 
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
+#include "misc/lv_text.h"
+
+#if HELVATICA_FONT_140
+LV_FONT_DECLARE(helvatica_140);
+#endif
+#if HELVATICA_FONT_130
+LV_FONT_DECLARE(helvatica_130);
+#endif
+#if HELVATICA_FONT_120
+LV_FONT_DECLARE(helvatica_120);
+#endif
+#if HELVATICA_FONT_100
+LV_FONT_DECLARE(helvatica_100);
+#endif
+#if HELVATICA_FONT_80
+LV_FONT_DECLARE(helvatica_80);
+#endif
+#if HELVATICA_FONT_60
+LV_FONT_DECLARE(helvatica_60);
+#endif
 
 namespace {
 constexpr const char* TAG = "LvglDisplay";
+
+struct AutoFontEntry { uint8_t size; const lv_font_t* font; };
+static const AutoFontEntry k_autoFonts[] = {
+#if HELVATICA_FONT_140
+    { 140, &helvatica_140 },
+#endif
+#if HELVATICA_FONT_130
+    { 130, &helvatica_130 },
+#endif
+#if HELVATICA_FONT_120
+    { 120, &helvatica_120 },
+#endif
+#if HELVATICA_FONT_100
+    { 100, &helvatica_100 },
+#endif
+#if HELVATICA_FONT_80
+    {  80, &helvatica_80  },
+#endif
+#if HELVATICA_FONT_60
+    {  60, &helvatica_60  },
+#endif
+#if LV_FONT_MONTSERRAT_48
+    {  48, &lv_font_montserrat_48 },
+#endif
+#if LV_FONT_MONTSERRAT_44
+    {  44, &lv_font_montserrat_44 },
+#endif
+#if LV_FONT_MONTSERRAT_40
+    {  40, &lv_font_montserrat_40 },
+#endif
+#if LV_FONT_MONTSERRAT_34
+    {  34, &lv_font_montserrat_34 },
+#endif
+#if LV_FONT_MONTSERRAT_30
+    {  30, &lv_font_montserrat_30 },
+#endif
+#if LV_FONT_MONTSERRAT_28
+    {  28, &lv_font_montserrat_28 },
+#endif
+#if LV_FONT_MONTSERRAT_22
+    {  22, &lv_font_montserrat_22 },
+#endif
+#if LV_FONT_MONTSERRAT_16
+    {  16, &lv_font_montserrat_16 },
+#endif
+#if LV_FONT_MONTSERRAT_14
+    {  14, &lv_font_montserrat_14 },
+#endif
+#if LV_FONT_MONTSERRAT_10
+    {  10, &lv_font_montserrat_10 },
+#endif
+};
+constexpr size_t k_autoFontCount = sizeof(k_autoFonts) / sizeof(k_autoFonts[0]);
 }
 
 static bool s_lvgl_inited = false;
 
+// ── AutoTextConfig ───────────────────────────────────────────────────
+
+const lv_font_t* ILvglDisplayConsumer::AutoTextConfig::resolveFont(const char* text, lv_display_t* disp) const {
+    const int32_t maxW = lv_display_get_horizontal_resolution(disp);
+    const lv_font_t* fallback = k_autoFonts[k_autoFontCount - 1].font;
+
+    for (size_t i = 0; i < k_autoFontCount; i++) {
+        const uint8_t sz = k_autoFonts[i].size;
+        if (maxSize > 0 && sz > maxSize) continue;
+        if (minSize > 0 && sz < minSize) break;
+
+        lv_point_t pt;
+        lv_text_get_size(&pt, text, k_autoFonts[i].font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if (pt.x <= maxW) return k_autoFonts[i].font;
+        fallback = k_autoFonts[i].font;
+    }
+    return fallback;
+}
+
 // ── Construction / destruction ───────────────────────────────────────
 
 ILvglDisplayConsumer::ILvglDisplayConsumer(const IDisplayConsumer::Zone* zones, uint8_t zoneCount,
-                                           const TextConfig* textConfigs, uint8_t textCount)
+                                           const TextConfig* const* textConfigs, uint8_t textCount)
     : _displayZones(zones), _zoneCount(zoneCount),
       _textConfigs(textConfigs), _textCount(textCount)
 {
@@ -80,14 +172,15 @@ void ILvglDisplayConsumer::buildUi() {
     }
 
     for (uint8_t i = 0; i < _textCount; i++) {
-        const TextConfig& cfg = _textConfigs[i];
+        const TextConfig& cfg = *_textConfigs[i];
         if (cfg.strokeWidth == 0) continue;
-        const int32_t sw    = cfg.strokeWidth;
-        const int32_t dx[4] = { -sw,  sw,   0,   0 };
-        const int32_t dy[4] = {   0,   0, -sw,  sw };
+        const lv_font_t* font   = cfg.resolveFont("", _disp);
+        const int32_t sw        = cfg.strokeWidth;
+        const int32_t dx[4]     = { -sw,  sw,   0,   0 };
+        const int32_t dy[4]     = {   0,   0, -sw,  sw };
         for (uint8_t j = 0; j < 4; j++) {
             lv_obj_t* sl = lv_label_create(scr);
-            lv_obj_set_style_text_font(sl, cfg.font, 0);
+            lv_obj_set_style_text_font(sl, font, 0);
             lv_obj_set_style_text_color(sl, lv_color_black(), 0);
             lv_label_set_text(sl, "");
             lv_obj_align(sl, cfg.align, cfg.x_ofs + dx[j], cfg.y_ofs + dy[j]);
@@ -96,9 +189,9 @@ void ILvglDisplayConsumer::buildUi() {
     }
 
     for (uint8_t i = 0; i < _textCount; i++) {
-        const TextConfig& cfg = _textConfigs[i];
+        const TextConfig& cfg = *_textConfigs[i];
         _labels[i] = lv_label_create(scr);
-        lv_obj_set_style_text_font(_labels[i], cfg.font, 0);
+        lv_obj_set_style_text_font(_labels[i], cfg.resolveFont("", _disp), 0);
         lv_obj_set_style_text_color(_labels[i], lv_color_white(), 0);
         lv_label_set_text(_labels[i], "");
         lv_obj_align(_labels[i], cfg.align, cfg.x_ofs, cfg.y_ofs);
@@ -132,10 +225,11 @@ void ILvglDisplayConsumer::applyState(TallyState state) {
         }
     }
     for (uint8_t i = 0; i < _textCount; i++) {
+        const TextConfig& cfg = *_textConfigs[i];
         lv_obj_set_style_text_color(_labels[i],
-            contrastTextColor(r, g, b, _textConfigs[i].brightness), 0);
-        if (_textConfigs[i].strokeWidth > 0) {
-            lv_color_t sc = contrastStrokeColor(r, g, b, _textConfigs[i].brightness);
+            contrastTextColor(r, g, b, cfg.brightness), 0);
+        if (cfg.strokeWidth > 0) {
+            lv_color_t sc = contrastStrokeColor(r, g, b, cfg.brightness);
             for (uint8_t j = 0; j < 4; j++) {
                 if (_strokeLabels[i * 4 + j])
                     lv_obj_set_style_text_color(_strokeLabels[i * 4 + j], sc, 0);
@@ -193,10 +287,14 @@ void ILvglDisplayConsumer::setAlertStep(DeviceAlertAction action,
 void ILvglDisplayConsumer::onTextChanged(uint8_t index, const char* text) {
     if (index >= _textCount || !_labels[index]) return;
     if (!lvgl_port_lock(portMAX_DELAY)) return;
+    const lv_font_t* font = _textConfigs[index]->resolveFont(text, _disp);
+    lv_obj_set_style_text_font(_labels[index], font, 0);
     lv_label_set_text(_labels[index], text);
     for (uint8_t j = 0; j < 4; j++) {
-        if (_strokeLabels[index * 4 + j])
+        if (_strokeLabels[index * 4 + j]) {
+            lv_obj_set_style_text_font(_strokeLabels[index * 4 + j], font, 0);
             lv_label_set_text(_strokeLabels[index * 4 + j], text);
+        }
     }
     lvgl_port_unlock();
 }
@@ -206,10 +304,14 @@ void ILvglDisplayConsumer::onTextChanged(uint8_t index, const char* text) {
 void ILvglDisplayConsumer::applySlot(uint8_t index) {
     if (index >= _textCount || !_labels[index]) return;
     const char* text = getBaseText(index);
+    const lv_font_t* font = _textConfigs[index]->resolveFont(text, _disp);
+    lv_obj_set_style_text_font(_labels[index], font, 0);
     lv_label_set_text(_labels[index], text);
     for (uint8_t j = 0; j < 4; j++) {
-        if (_strokeLabels[index * 4 + j])
+        if (_strokeLabels[index * 4 + j]) {
+            lv_obj_set_style_text_font(_strokeLabels[index * 4 + j], font, 0);
             lv_label_set_text(_strokeLabels[index * 4 + j], text);
+        }
     }
 }
 

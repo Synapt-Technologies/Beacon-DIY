@@ -10,8 +10,6 @@
 #include "esp_lvgl_port.h"
 #include "esp_log.h"
 
-LV_FONT_DECLARE(helvatica_140);
-
 namespace {
 constexpr const char* TAG               = "Ili9341";
 constexpr int LCD_PIXEL_CLOCK_HZ        = 80 * 1000 * 1000;
@@ -24,7 +22,7 @@ constexpr int LCD_DRAW_BUFFER_LINES     = 80;
 
 Ili9341LvglDisplayConsumer::Ili9341LvglDisplayConsumer(const IDisplayConsumer::Zone* zones,
                                                        uint8_t zoneCount,
-                                                       const ILvglDisplayConsumer::TextConfig* textConfigs,
+                                                       const ILvglDisplayConsumer::TextConfig* const* textConfigs,
                                                        uint8_t textCount)
     : ILvglDisplayConsumer(zones, zoneCount, textConfigs, textCount)
 {}

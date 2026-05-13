@@ -12,7 +12,7 @@ constexpr const char* TAG = "Hub75Display";
 Hub75LvglDisplayConsumer::Hub75LvglDisplayConsumer(const Hub75Config& config,
                                                    const IDisplayConsumer::Zone* zones,
                                                    uint8_t zoneCount,
-                                                   const ILvglDisplayConsumer::TextConfig* textConfigs,
+                                                   const ILvglDisplayConsumer::TextConfig* const* textConfigs,
                                                    uint8_t textCount)
     : ILvglDisplayConsumer(zones, zoneCount, textConfigs, textCount),
       _config(config),
