@@ -7,6 +7,8 @@
 //TODO Move text to TextHandler
 class IDisplayConsumer : public IConsumer {
 public:
+    IDisplayConsumer(ITallyColorMapper& colorMapper) : IConsumer(colorMapper) {}
+
     static constexpr uint8_t TEXT_COUNT = 8;
     static constexpr size_t  TEXT_BUF   = 64;
 
@@ -30,8 +32,6 @@ public:
     void setText(const char* text, uint8_t index, uint32_t timeout = 0);
 
 protected:
-    IDisplayConsumer() = default;
-
     // Called when the text to display for a slot changes (on set OR on revert to base).
     // Implementors must acquire any necessary rendering lock inside this method.
     virtual void onTextChanged(uint8_t index, const char* text) = 0;

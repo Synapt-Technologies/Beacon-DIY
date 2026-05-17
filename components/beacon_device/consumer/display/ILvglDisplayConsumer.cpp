@@ -138,9 +138,9 @@ const lv_font_t* ILvglDisplayConsumer::AutoTextConfig::resolveFont(const char* t
 
 // ── Construction / destruction ───────────────────────────────────────
 
-ILvglDisplayConsumer::ILvglDisplayConsumer(const IDisplayConsumer::Zone* zones, uint8_t zoneCount,
+ILvglDisplayConsumer::ILvglDisplayConsumer(ITallyColorMapper& colorMapper, const IDisplayConsumer::Zone* zones, uint8_t zoneCount,
                                            const TextConfig* const* textConfigs, uint8_t textCount)
-    : _displayZones(zones), _zoneCount(zoneCount),
+    : IDisplayConsumer(colorMapper), _displayZones(zones), _zoneCount(zoneCount),
       _textConfigs(textConfigs), _textCount(textCount)
 {
     _labels       = new lv_obj_t*[_textCount]();
@@ -269,30 +269,27 @@ void ILvglDisplayConsumer::buildUi() {
 // ── IConsumer overrides ──────────────────────────────────────────────
 
 void ILvglDisplayConsumer::applyState(TallyState state) {
-    if (!_zoneObjs || !_labels[0] || !lvgl_port_lock(portMAX_DELAY)) return;
+    if (!_zoneObjs || !lvgl_port_lock(portMAX_DELAY)) return;
 
-    uint8_t r, g, b;
-    stateToColor(state, r, g, b);
+    RGBColor color = _colorMapper.stateToColor(state);
 
-    const lv_color_t col = lv_color_make(r, g, b);  // raw — hardware dims the entire framebuffer
+    const lv_color_t col = lv_color_make(color.r, color.g, color.b);
 
     for (uint8_t i = 0; i < _zoneCount; i++) {
         const IDisplayConsumer::Zone& z = _displayZones[i];
-        if (state < z.minState) {
-            lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
-        } else if (z.stateColored) {
+        if (z.stateColored && state >= z.minState) {
             lv_obj_set_style_bg_color(_zoneObjs[i], col, 0);
             lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_COVER, 0);
-        } else if (!_alertTask) {
+        } else {
             lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
         }
     }
     for (uint8_t i = 0; i < _textCount; i++) {
         const TextConfig& cfg = *_textConfigs[i];
         lv_obj_set_style_text_color(_labels[i],
-            contrastTextColor(r, g, b, cfg.brightness), 0);
+            contrastTextColor(color, cfg.brightness), 0);
         if (cfg.strokeWidth > 0) {
-            lv_color_t sc = contrastStrokeColor(r, g, b, cfg.brightness);
+            lv_color_t sc = contrastStrokeColor(color, cfg.brightness);
             for (uint8_t j = 0; j < 4; j++) {
                 if (_strokeLabels[i * 4 + j])
                     lv_obj_set_style_text_color(_strokeLabels[i * 4 + j], sc, 0);
@@ -308,34 +305,28 @@ void ILvglDisplayConsumer::applyState(TallyState state) {
     lvgl_port_unlock();
 }
 
-void ILvglDisplayConsumer::setAlertStep(DeviceAlertAction action,
-                                        DeviceAlertTarget target, uint8_t step) {
-    const AlertPattern* cfg = getAlertPattern(action);
-    if (!cfg || !_zoneObjs || !lvgl_port_lock(portMAX_DELAY)) return;
+void ILvglDisplayConsumer::setAlertStep(DeviceAlertTarget target, const TallyState* step_variants, uint8_t variantCount) {
+    if (!_zoneObjs || !lvgl_port_lock(portMAX_DELAY)) return;
 
     for (uint8_t i = 0; i < _zoneCount; i++) {
         const IDisplayConsumer::Zone& z = _displayZones[i];
 
-        if (z.alertTarget != DeviceAlertTarget::ALL
-            && target != DeviceAlertTarget::ALL
-            && z.alertTarget != target) continue;
+        if (!doesTargetMatch(z.alertTarget, target)) continue;
 
-        uint8_t v = z.alertVariant % cfg->variantCount;
-        TallyState s = cfg->patterns[v][step % cfg->patternLen];
+        uint8_t v = z.alertVariant % variantCount;
+        TallyState state = step_variants[v];
 
-        if (s == TallyState::NONE) {
+        if (state == TallyState::NONE) {
             if (z.stateColored && _state >= z.minState) {
-                uint8_t r, g, b;
-                stateToColor(_state, r, g, b);
-                lv_obj_set_style_bg_color(_zoneObjs[i], lv_color_make(r, g, b), 0);
+                RGBColor color = _colorMapper.stateToColor(_state);
+                lv_obj_set_style_bg_color(_zoneObjs[i], lv_color_make(color.r, color.g, color.b), 0);
                 lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_COVER, 0);
             } else {
                 lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_TRANSP, 0);
             }
         } else {
-            uint8_t r, g, b;
-            stateToColor(s, r, g, b);
-            lv_obj_set_style_bg_color(_zoneObjs[i], lv_color_make(r, g, b), 0);
+            RGBColor color = _colorMapper.stateToColor(state);
+            lv_obj_set_style_bg_color(_zoneObjs[i], lv_color_make(color.r, color.g, color.b), 0);
             lv_obj_set_style_bg_opa(_zoneObjs[i], LV_OPA_COVER, 0);
         }
     }
@@ -379,13 +370,13 @@ void ILvglDisplayConsumer::applySlot(uint8_t index) {
 }
 
 // TODO Improve. Take into account the background color in any case.
-lv_color_t ILvglDisplayConsumer::contrastTextColor(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
-    uint16_t y = (r * 299u + g * 587u + b * 114u) / 1000u;
+lv_color_t ILvglDisplayConsumer::contrastTextColor(RGBColor color, uint8_t brightness) {
+    uint16_t y = (color.r * 299u + color.g * 587u + color.b * 114u) / 1000u;
     return (y > 180) ? lv_color_make(0, 0, 0) : lv_color_make(brightness, brightness, brightness);
 }
 
-lv_color_t ILvglDisplayConsumer::contrastStrokeColor(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness) {
-    uint16_t y = (r * 299u + g * 587u + b * 114u) / 1000u;
+lv_color_t ILvglDisplayConsumer::contrastStrokeColor(RGBColor color, uint8_t brightness) {
+    uint16_t y = (color.r * 299u + color.g * 587u + color.b * 114u) / 1000u;
     return (y > 180) ? lv_color_make(brightness, brightness, brightness) : lv_color_make(0, 0, 0);
 }
 
