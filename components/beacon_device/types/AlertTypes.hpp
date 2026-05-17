@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include "types/TallyTypes.hpp"
+
 enum class DeviceAlertType {
     COLOR = 0,
     TEXT  = 1,
