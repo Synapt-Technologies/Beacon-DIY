@@ -5,6 +5,8 @@
 
 class ITallyColorMapper {
 public:
+    //TODO add getInstance and make this a singleton.
+
     virtual ~ITallyColorMapper() = default;
 
     virtual RGBColor stateToColor(TallyState state) = 0;
