@@ -11,6 +11,8 @@ enum class TallyState {
     PROGRAM = 20
 };
 
+
+// TODO move to AlertTypes.hpp?
 enum class DeviceAlertAction {
     CLEAR = 0,
     IDENT = 2,
