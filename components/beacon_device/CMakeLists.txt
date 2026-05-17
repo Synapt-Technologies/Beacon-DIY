@@ -58,6 +58,14 @@ idf_component_register(
         "orchestrator/NodeOrchestrator.hpp"
         "orchestrator/SateliteOrchestrator.hpp"
         "types/TallyTypes.hpp"
+        "types/ColorTypes.hpp"
+        "types/AlertTypes.hpp"
+        "types/TextTypes.hpp"
+        "consumer/ILutConsumer.hpp"
+        "orchestrator/handlers/TallyHandler.hpp"
+        "orchestrator/handlers/ITextHandler.hpp"
+        "orchestrator/handlers/colorPatternMap/IColorAlertPatternMap.hpp"
+        "orchestrator/handlers/colorPatternMap/DefaultColorAlertPatternMap.hpp"
     INCLUDE_DIRS "."
     REQUIRES
         esp_driver_gpio
