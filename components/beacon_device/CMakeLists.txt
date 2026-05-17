@@ -19,7 +19,6 @@ idf_component_register(
     SRCS
         "config/Config.cpp"
         "config/NvsSettingsStore.cpp"
-        "consumer/IConsumer.cpp"
         "consumer/IDisplayConsumer.cpp"
         "consumer/display/ILvglDisplayConsumer.cpp"
         "consumer/display/Ili9341LvglDisplayConsumer.cpp"
@@ -31,6 +30,7 @@ idf_component_register(
         "networkConnection/StaWifiConnection.cpp"
         "orchestrator/IOrchestrator.cpp"
         "orchestrator/SateliteOrchestrator.cpp"
+        "orchestrator/handlers/colorPatternMap/DefaultColorAlertPatternMap.cpp"
         "beaconConnection/IBeaconConnection.hpp"
         "beaconConnection/TcpMqttBeaconConnection.hpp"
         "config/Config.hpp"
@@ -58,6 +58,14 @@ idf_component_register(
         "orchestrator/NodeOrchestrator.hpp"
         "orchestrator/SateliteOrchestrator.hpp"
         "types/TallyTypes.hpp"
+        "types/ColorTypes.hpp"
+        "types/AlertTypes.hpp"
+        "types/TextTypes.hpp"
+        "consumer/ILutConsumer.hpp"
+        "orchestrator/handlers/TallyHandler.hpp"
+        "orchestrator/handlers/ITextHandler.hpp"
+        "orchestrator/handlers/colorPatternMap/IColorAlertPatternMap.hpp"
+        "orchestrator/handlers/colorPatternMap/DefaultColorAlertPatternMap.hpp"
     INCLUDE_DIRS "."
     REQUIRES
         esp_driver_gpio

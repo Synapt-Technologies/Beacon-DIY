@@ -5,6 +5,8 @@
 
 class ILvglDisplayConsumer : public IDisplayConsumer {
 public:
+
+
     struct TextConfig {
         uint8_t    brightness  = 255;
         lv_align_t align       = LV_ALIGN_CENTER;
@@ -67,14 +69,16 @@ public:
     };
 
     ~ILvglDisplayConsumer() override;
+    ILvglDisplayConsumer(ITallyColorMapper& colorMapper, const IDisplayConsumer::Zone* zones, uint8_t zoneCount,
+                         const TextConfig* const* textConfigs, uint8_t textCount);
 
     void init() override;
 
     uint8_t labelCount() const override { return _textCount; }
 
+    void setAlertStep(DeviceAlertTarget target, const TallyState* step_variants, uint8_t variantCount) override;
+
 protected:
-    ILvglDisplayConsumer(const IDisplayConsumer::Zone* zones, uint8_t zoneCount,
-                         const TextConfig* const* textConfigs, uint8_t textCount);
 
     virtual lv_display_t* initHardware() = 0;
 
@@ -86,7 +90,6 @@ protected:
 
     // IConsumer overrides — shared LVGL rendering
     void applyState(TallyState state) override;
-    void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) override;
 
     // IDisplayConsumer override
     void onTextChanged(uint8_t index, const char* text) override;
@@ -94,8 +97,8 @@ protected:
 private:
     void buildUi();
     void applySlot(uint8_t index);
-    static lv_color_t contrastTextColor(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness = 255);
-    static lv_color_t contrastStrokeColor(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness = 255);
+    static lv_color_t contrastTextColor(RGBColor color, uint8_t brightness = 255);
+    static lv_color_t contrastStrokeColor(RGBColor color, uint8_t brightness = 255);
 
     const IDisplayConsumer::Zone* _displayZones;
     uint8_t                 _zoneCount;

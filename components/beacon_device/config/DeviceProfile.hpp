@@ -7,7 +7,8 @@ enum class DeviceType : uint8_t {
     MULTI_TOPIC,  // one MQTT subscription per consumer → each shows its own tally state
 };
 
-// TODO: ConsumerCount -> List of labels
+// TODO: Update this from the orchestrator.
+// TODO: Split into DeviceProfile and DeviceInfo (dynically loaded)
 struct DeviceProfile {
     DeviceType  deviceType    = DeviceType::SINGLE_TOPIC;
     char        model[32]     = "Beacon Satellite";

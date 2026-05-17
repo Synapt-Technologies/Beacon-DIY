@@ -6,7 +6,7 @@
 
 struct StripSection {
     uint8_t           startLed;
-    uint8_t           alertPattern;
+    uint8_t           alertVariant;
     DeviceAlertTarget target;
     TallyState        minState     = TallyState::NONE;  // section off when _state < minState
     bool              stateColored = true;              // false = section dark during normal tally
@@ -14,7 +14,7 @@ struct StripSection {
 
 class WS2812Consumer : public ILutConsumer {
 public:
-    WS2812Consumer(led_strip_handle_t strip, uint8_t ledCount, StripSection sections[], uint8_t sectionCount) {
+    WS2812Consumer(ITallyColorMapper& colorMapper, led_strip_handle_t strip, uint8_t ledCount, StripSection sections[], uint8_t sectionCount) : ILutConsumer(colorMapper) {
         _strip        = strip;
         _ledCount     = ledCount;
         _sections     = sections;
@@ -38,27 +38,6 @@ private:
             : static_cast<uint8_t>(_ledCount) - _sections[s].startLed;
     }
 
-    //TODO Implement better zones. Probably setColorRange -> setZoneColor?
-    void applyState(TallyState state) override {
-        uint8_t r, g, b;
-        stateToColor(state, r, g, b);
-        const uint8_t sr = scale_brightness(r);
-        const uint8_t sg = scale_brightness(g);
-        const uint8_t sb = scale_brightness(b);
-
-        xSemaphoreTake(_mutex, portMAX_DELAY);
-        for (uint8_t s = 0; s < _sectionCount; s++) {
-            const StripSection& sec = _sections[s];
-            const uint8_t start = sec.startLed;
-            const uint8_t count = sectionCount(s);
-            const bool    show  = (state >= sec.minState && sec.stateColored);
-            for (uint8_t i = start; i < start + count; i++)
-                led_strip_set_pixel(_strip, i, show ? sr : 0, show ? sg : 0, show ? sb : 0);
-        }
-        led_strip_refresh(_strip);
-        xSemaphoreGive(_mutex);
-    }
-
     void setColorRange(uint8_t start, uint8_t count, uint8_t r, uint8_t g, uint8_t b) {
         const uint8_t sr = scale_brightness(r);
         const uint8_t sg = scale_brightness(g);
@@ -67,34 +46,45 @@ private:
             led_strip_set_pixel(_strip, i, sr, sg, sb);
     }
 
-    void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) override {
-        const AlertPattern* pattern = getAlertPattern(action);
-        if (!pattern) return;
+    //TODO Implement better zones. Probably setColorRange -> setZoneColor?
+    void applyState(TallyState state) override {
+        RGBColor color = _colorMapper.stateToColor(state);
 
         xSemaphoreTake(_mutex, portMAX_DELAY);
         for (uint8_t s = 0; s < _sectionCount; s++) {
             const StripSection& sec = _sections[s];
-            if (sec.target != DeviceAlertTarget::ALL && target != DeviceAlertTarget::ALL && sec.target != target)
-                continue;
+            const bool show = sec.stateColored && (state >= sec.minState);
+            
+            setColorRange(sec.startLed, sectionCount(s),
+                      show ? color.r : 0,
+                      show ? color.g : 0,
+                      show ? color.b : 0);
+        }
+        led_strip_refresh(_strip);
+        xSemaphoreGive(_mutex);
+    }
+
+    void setAlertStep(DeviceAlertTarget target, const TallyState* step_variants, uint8_t variantCount) override {
+        xSemaphoreTake(_mutex, portMAX_DELAY);
+        for (uint8_t s = 0; s < _sectionCount; s++) {
+            const StripSection& sec = _sections[s];
+            if (!doesTargetMatch(sec.target, target)) continue;
 
             const uint8_t start      = sec.startLed;
             const uint8_t count      = sectionCount(s);
-            const uint8_t variantIdx = sec.alertPattern % pattern->variantCount;
-            const TallyState state   = pattern->patterns[variantIdx][step % pattern->patternLen];
+            const uint8_t variantIdx = sec.alertVariant % variantCount;
+            const TallyState state   = step_variants[variantIdx];
 
             if (state == TallyState::NONE) {
                 if (sec.stateColored && _state >= sec.minState) {
-                    uint8_t r, g, b;
-                    stateToColor(_state, r, g, b);
-                    setColorRange(start, count, r, g, b);
+                    RGBColor color = _colorMapper.stateToColor(_state);
+                    setColorRange(start, count, color.r, color.g, color.b);
                 } else {
-                    for (uint8_t i = start; i < start + count; i++)
-                        led_strip_set_pixel(_strip, i, 0, 0, 0);
+                    setColorRange(start, count, 0, 0, 0);
                 }
             } else {
-                uint8_t r, g, b;
-                stateToColor(state, r, g, b);
-                setColorRange(start, count, r, g, b);
+                RGBColor color = _colorMapper.stateToColor(state);
+                setColorRange(start, count, color.r, color.g, color.b);
             }
         }
         led_strip_refresh(_strip);

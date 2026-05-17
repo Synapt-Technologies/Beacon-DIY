@@ -7,7 +7,7 @@
 // Use for LED consumers (WS2812, SimpleRGB). LVGL displays use hardware dimming instead.
 class ILutConsumer : public IConsumer {
 protected:
-    ILutConsumer() { rebuildLut(); }
+    ILutConsumer(ITallyColorMapper& colorMapper) : IConsumer(colorMapper) { rebuildLut(); }
 
     void applyBrightness(uint8_t /*brightness*/) override { rebuildLut(); }
 
