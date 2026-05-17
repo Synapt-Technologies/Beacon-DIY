@@ -29,14 +29,8 @@ void SateliteOrchestrator::doStart()
     _beacon.setAlertCallback(
         [this](DeviceAlertAction a, DeviceAlertTarget t, uint32_t ms) { applyAlert(a, t, ms); }
     );
-    _beacon.setNameCallback(
-        [this](const char* s, const char* l) {
-            Settings::Runtime r = _config.get().runtime;
-            strncpy(r.name[0].shortName, s, sizeof(r.name[0].shortName) - 1);
-            r.name[0].shortName[sizeof(r.name[0].shortName) - 1] = '\0';
-            strncpy(r.name[0].longName, l, sizeof(r.name[0].longName) - 1);
-            r.name[0].longName[sizeof(r.name[0].longName) - 1] = '\0';
-
+    _beacon.setRuntimeConfigCallback(
+        [this](Settings::Runtime r) {
             _config.applyRuntime(r);
         }
     );
@@ -128,7 +122,7 @@ void SateliteOrchestrator::onRuntimeChanged(const Settings::Runtime& s)
 
     ESP_LOGI(TAG, "Runtime settings changed: Shortname: %s, Longname: %s", s.name[0].shortName, s.name[0].longName);
 
-    // for (int i = 0; i < _consumerCount; i++) { // TODO add master brightness
+    // for (int i = 0; i < _consumerCount; i++) { // TODO add master brightness, state on disconnect and flip_sides handling.
     //     _consumers[i]->setBrightness(s.brightness);
     //     // TODO Add alert target handeling. Not implemented because of multi target consumers.
     // }
@@ -156,6 +150,12 @@ void SateliteOrchestrator::applyAlert(DeviceAlertAction action,
                                        uint32_t timeout)
 {
     ESP_LOGI(TAG, "Applying alert: %d", static_cast<int>(action));
+
+    if (_config.get().runtime.flip_sides) {
+        if (target == DeviceAlertTarget::OPERATOR) target = DeviceAlertTarget::TALENT;
+        else if (target == DeviceAlertTarget::TALENT) target = DeviceAlertTarget::OPERATOR;
+    }
+
     for (int i = 0; i < _consumerCount; i++) {
         _consumers[i]->setAlert(action, target, timeout);
     }

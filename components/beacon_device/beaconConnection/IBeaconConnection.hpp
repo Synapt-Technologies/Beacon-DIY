@@ -7,6 +7,7 @@
 #include "freertos/task.h"
 #include "esp_netif_types.h"
 #include "types/TallyTypes.hpp"
+#include "config/Settings.hpp"
 
 enum class BeaconStatus {
     DISCONNECTED,
@@ -16,10 +17,10 @@ enum class BeaconStatus {
 
 class IBeaconConnection {
 public:
-    using TallyCb = std::function<void(TallyState state)>;
-    using AlertCb = std::function<void(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout)>;
-    using NameCb  = std::function<void(const char* shortName, const char* longName)>; // TODO: More generic runtime callback?
-    using ConnectionCb = std::function<void(BeaconStatus status)>;
+    using TallyCb           = std::function<void(TallyState state)>;
+    using AlertCb           = std::function<void(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout)>;
+    using RuntimeConfigCb   = std::function<void(Settings::Runtime)>;
+    using ConnectionCb      = std::function<void(BeaconStatus status)>;
 
     virtual ~IBeaconConnection() = default;
 
@@ -46,9 +47,9 @@ public:
         updateSubscriptions();
     }
 
-    void setTallyCallback(TallyCb cb) { _tallyCb = cb; }
-    void setAlertCallback(AlertCb cb) { _alertCb = cb; }
-    void setNameCallback(NameCb cb) { _nameCb = cb; }
+    void setTallyCallback(TallyCb cb)   { _tallyCb = cb; }
+    void setAlertCallback(AlertCb cb)   { _alertCb = cb; }
+    void setRuntimeConfigCallback(RuntimeConfigCb cb) { _runtimeConfigCb = cb; }
     void setConnectionCallback(ConnectionCb cb) { _connectionCb = cb; }
 
     void getConsumerAddress(char* out, int len) const {
@@ -62,10 +63,10 @@ public:
     }
 
 protected:
-    TallyCb      _tallyCb;
-    AlertCb      _alertCb;
-    NameCb       _nameCb;
-    ConnectionCb _connectionCb;
+    TallyCb             _tallyCb;
+    AlertCb             _alertCb;
+    RuntimeConfigCb     _runtimeConfigCb;
+    ConnectionCb        _connectionCb;
     char _consumer[64] = "aedes";
     char _device[64]   = {};
 

@@ -63,6 +63,9 @@ public:
         _connected      = false;
         _tallyTopic[0]  = '\0';
         _alertTopic[0]  = '\0';
+        _runtimeConfigTopic[0] = '\0';
+
+        // TODO USe clearSubscriptions?
     }
 
     void setBaseAddress(const char* url) override {
@@ -80,26 +83,29 @@ private:
     static constexpr char TAG[]       = "TcpMqtt";
     static constexpr char _infoTopic[] = "system/info";
 
-    char                     _url[256]        = {};
-    char                     _tallyTopic[160] = {};
-    char                     _alertTopic[160] = {};
-    esp_mqtt_client_handle_t _client          = nullptr;
-    esp_timer_handle_t       _aliveTimer      = nullptr;
+    // TODO: Are these really needed?
+    char                     _url[256]                  = {};
+    char                     _tallyTopic[160]           = {};
+    char                     _alertTopic[160]           = {};
+    char                     _runtimeConfigTopic[160]   = {};
+    esp_mqtt_client_handle_t _client                    = nullptr;
+    esp_timer_handle_t       _aliveTimer                = nullptr;
 
     void updateSubscriptions() override {
         if (!_client || !_connected) return;
 
         clearSubscriptions();
 
-        snprintf(_tallyTopic, sizeof(_tallyTopic), "tally/device/%s/%s", _consumer, _device);
-        snprintf(_alertTopic, sizeof(_alertTopic), "tally/device/%s/%s/alert", _consumer, _device);
+        snprintf(_tallyTopic,  sizeof(_tallyTopic),                 "tally/device/%s/%s",       _consumer, _device);
+        snprintf(_alertTopic,  sizeof(_alertTopic),                 "tally/device/%s/%s/alert", _consumer, _device);
+        snprintf(_runtimeConfigTopic, sizeof(_runtimeConfigTopic),  "tally/device/%s/%s/config", _consumer, _device);
 
         if (esp_mqtt_client_subscribe(_client, _infoTopic, 0) < 0)
             ESP_LOGW(TAG, "Failed to subscribe to %s", _infoTopic);
         else
             ESP_LOGI(TAG, "Subscribed to %s", _infoTopic);
 
-        if (_tallyCb || _nameCb) { // TODO: Check if name/info need a separate topic. Currently they are sent together with the tally state.
+        if (_tallyCb) {
             if (esp_mqtt_client_subscribe(_client, _tallyTopic, 0) < 0)
                 ESP_LOGW(TAG, "Failed to subscribe to %s", _tallyTopic);
             else
@@ -111,6 +117,13 @@ private:
                 ESP_LOGW(TAG, "Failed to subscribe to %s", _alertTopic);
             else
                 ESP_LOGI(TAG, "Subscribed to %s", _alertTopic);
+        }
+
+        if (_runtimeConfigCb) {
+            if (esp_mqtt_client_subscribe(_client, _runtimeConfigTopic, 0) < 0)
+                ESP_LOGW(TAG, "Failed to subscribe to %s", _runtimeConfigTopic);
+            else
+                ESP_LOGI(TAG, "Subscribed to %s", _runtimeConfigTopic);
         }
     }
 
@@ -129,6 +142,10 @@ private:
         if (_alertTopic[0]) {
             esp_mqtt_client_unsubscribe(_client, _alertTopic);
             _alertTopic[0] = '\0';
+        }
+        if (_runtimeConfigTopic[0]) {
+            esp_mqtt_client_unsubscribe(_client, _runtimeConfigTopic);
+            _runtimeConfigTopic[0] = '\0';
         }
     }
 
@@ -169,9 +186,12 @@ private:
         //          event->topic_len, event->topic,
         //          event->data_len, event->data);
 
-        if      (matches(_tallyTopic)) onTally(event->data, event->data_len);
-        else if (matches(_alertTopic)) onAlert(event->data, event->data_len);
-        else if (matches(_infoTopic))  onGlobalInfo(event->data, event->data_len);
+        if      (matches(_tallyTopic))          onTally(event->data, event->data_len);
+        else if (matches(_alertTopic))          onAlert(event->data, event->data_len);
+        else if (matches(_infoTopic))           onGlobalInfo(event->data, event->data_len);
+        else if (matches(_runtimeConfigTopic))  onRuntimeConfig(event->data, event->data_len);
+        else
+            ESP_LOGW(TAG, "Received data on unknown topic %.*s", event->topic_len, event->topic);
     }
 
     void onGlobalInfo(const char* data, int len) { // TODO add Beacon info parsing
@@ -191,62 +211,34 @@ private:
 
     void onTally(const char* data, int len) {
 
-        if (_tallyCb) {
+        if (!_tallyCb) 
+            return;
 
-            TallyState ss = TallyState::NONE;
-            int rawSs = extractInt(data, len, "ss", -1);
-            if (rawSs >= 0) {
-                ss = static_cast<TallyState>(rawSs);
-            } else {
-                char state[16] = {};
-                const char* key = "\"state\":\"";
-                for (int i = 0; i <= len - 9; i++) {
-                    if (strncmp(data + i, key, 9) == 0) {
-                        const char* p = data + i + 9;
-                        int j = 0;
-                        while (p + j < data + len && p[j] != '"' && j < 15)
-                            state[j] = p[j], j++;
-                        break;
-                    }
-                }
-                if      (strcmp(state, "PROGRAM") == 0) ss = TallyState::PROGRAM;
-                else if (strcmp(state, "DANGER")  == 0) ss = TallyState::DANGER;
-                else if (strcmp(state, "PREVIEW") == 0) ss = TallyState::PREVIEW;
-                else if (strcmp(state, "WARNING") == 0) ss = TallyState::WARNING;
-            }
-
-            ESP_LOGI(TAG, "Tally ss=%d", static_cast<int>(ss));
-            
-            _tallyCb(ss);
-        }
-
-        if (_nameCb) {
-            char shortName[64] = {};
-            char longName[64]  = {};
-
-            static constexpr char shortKey[] = "\"short\":\"";
-            static constexpr char longKey[]  = "\"long\":\"";
-            static constexpr int  shortKeyLen = sizeof(shortKey) - 1;
-            static constexpr int  longKeyLen  = sizeof(longKey)  - 1;
-
-            for (int i = 0; i < len; i++) {
-                if (i + shortKeyLen <= len && strncmp(data + i, shortKey, shortKeyLen) == 0) {
-                    const char* p = data + i + shortKeyLen;
+        TallyState ss = TallyState::NONE;
+        int rawSs = extractInt(data, len, "ss", -1);
+        if (rawSs >= 0) {
+            ss = static_cast<TallyState>(rawSs);
+        } else {
+            char state[16] = {};
+            const char* key = "\"state\":\"";
+            for (int i = 0; i <= len - 9; i++) {
+                if (strncmp(data + i, key, 9) == 0) {
+                    const char* p = data + i + 9;
                     int j = 0;
-                    while (p + j < data + len && p[j] != '"' && j < 63)
-                        shortName[j] = p[j], j++;
-                } else if (i + longKeyLen <= len && strncmp(data + i, longKey, longKeyLen) == 0) {
-                    const char* p = data + i + longKeyLen;
-                    int j = 0;
-                    while (p + j < data + len && p[j] != '"' && j < 63)
-                        longName[j] = p[j], j++;
+                    while (p + j < data + len && p[j] != '"' && j < 15)
+                        state[j] = p[j], j++;
+                    break;
                 }
             }
-
-            ESP_LOGI(TAG, "Device name: short=\"%s\" long=\"%s\"", shortName, longName);
-
-            _nameCb(shortName, longName);
+            if      (strcmp(state, "PROGRAM") == 0) ss = TallyState::PROGRAM;
+            else if (strcmp(state, "DANGER")  == 0) ss = TallyState::DANGER;
+            else if (strcmp(state, "PREVIEW") == 0) ss = TallyState::PREVIEW;
+            else if (strcmp(state, "WARNING") == 0) ss = TallyState::WARNING;
         }
+
+        ESP_LOGI(TAG, "Tally ss=%d", static_cast<int>(ss));
+        
+        _tallyCb(ss);
     }
 
     void onAlert(const char* data, int len) {
@@ -264,6 +256,44 @@ private:
             static_cast<DeviceAlertTarget>(target),
             time >= 0 ? static_cast<uint32_t>(time) : 0
         );
+    }
+
+    void onRuntimeConfig(const char* data, int len) {
+        if (!_runtimeConfigCb)
+            return;
+
+        Settings::Runtime config = {};
+
+        int brightness = extractInt(data, len, "brightness", -1);
+        if (brightness >= 0)
+            config.brightness = static_cast<uint8_t>(brightness);
+
+        char shortName[64] = {};
+        char longName[64]  = {};
+
+        static constexpr char shortKey[] = "\"short\":\"";
+        static constexpr char longKey[]  = "\"long\":\"";
+        static constexpr int  shortKeyLen = sizeof(shortKey) - 1;
+        static constexpr int  longKeyLen  = sizeof(longKey)  - 1;
+
+        for (int i = 0; i < len; i++) {
+            if (i + shortKeyLen <= len && strncmp(data + i, shortKey, shortKeyLen) == 0) {
+                const char* p = data + i + shortKeyLen;
+                int j = 0;
+                while (p + j < data + len && p[j] != '"' && j < 63)
+                    shortName[j] = p[j], j++;
+            } else if (i + longKeyLen <= len && strncmp(data + i, longKey, longKeyLen) == 0) {
+                const char* p = data + i + longKeyLen;
+                int j = 0;
+                while (p + j < data + len && p[j] != '"' && j < 63)
+                    longName[j] = p[j], j++;
+            }
+        }
+
+        if (shortName[0]) std::strncpy(config.name[0].shortName, shortName, sizeof(config.name[0].shortName) - 1);
+        if (longName[0])  std::strncpy(config.name[0].longName,  longName,  sizeof(config.name[0].longName) - 1);
+
+        _runtimeConfigCb(config);
     }
 
     static int extractInt(const char* data, int len, const char* key, int defaultVal) {
