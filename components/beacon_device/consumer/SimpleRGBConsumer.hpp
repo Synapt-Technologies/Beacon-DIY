@@ -5,8 +5,9 @@
 
 class SimpleRGBConsumer : public ILutConsumer {
 public:
-    SimpleRGBConsumer(gpio_num_t rPin, gpio_num_t gPin, gpio_num_t bPin, DeviceAlertTarget target)
-        : _rPin(rPin), _gPin(gPin), _bPin(bPin), _target(target)
+    // TODO add variant config.
+    SimpleRGBConsumer(ITallyColorMapper& colorMapper, gpio_num_t rPin, gpio_num_t gPin, gpio_num_t bPin, DeviceAlertTarget target, uint8_t alertVariant = 1)
+        : ILutConsumer(colorMapper), _rPin(rPin), _gPin(gPin), _bPin(bPin), _target(target), _alertVariant(alertVariant)
     {
         gpio_set_direction(_rPin, GPIO_MODE_OUTPUT);
         gpio_set_direction(_gPin, GPIO_MODE_OUTPUT);
@@ -22,6 +23,7 @@ public:
 private:
     gpio_num_t        _rPin, _gPin, _bPin;
     DeviceAlertTarget _target;
+    uint8_t           _alertVariant;
 
     void writeGpio(uint8_t r, uint8_t g, uint8_t b) {
         // Binary GPIO. To add PWM: replace with ledc_set_duty/ledc_update_duty per pin.
@@ -31,17 +33,13 @@ private:
     }
 
     void applyState(TallyState state) override {
-        uint8_t r, g, b;
-        stateToColor(state, r, g, b);
-        writeGpio(scale_brightness(r), scale_brightness(g), scale_brightness(b));
+        RGBColor color = _colorMapper.stateToColor(state);
+        writeGpio(scale_brightness(color.r), scale_brightness(color.g), scale_brightness(color.b));
     }
 
-    void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) override {
-        if (target != _target) return;
-        const AlertPattern* pattern = getAlertPattern(action);
-        if (!pattern) return;
-        // Use variant 1 — basic single-phase animation (variant 0 is always no-flash)
-        TallyState state = pattern->patterns[1][step % pattern->patternLen];
+    void setAlertStep(DeviceAlertTarget target, const TallyState* step_variants, uint8_t variantCount) override {
+        if (!doesTargetMatch(_target, target)) return;
+        TallyState state = step_variants[_alertVariant % variantCount];
         if (state == TallyState::NONE)
             applyState(_state);
         else

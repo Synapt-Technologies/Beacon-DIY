@@ -1,6 +1,8 @@
 #pragma once
 
 #include "types/TallyTypes.hpp"
+#include "types/ColorTypes.hpp"
+#include "mapper/ITallyColorMapper.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdint.h>
@@ -9,35 +11,23 @@ class IDisplayConsumer; // forward declaration for asDisplay()
 
 class IConsumer {
 public:
+    IConsumer(ITallyColorMapper& colorMapper) : _colorMapper(colorMapper) {}
     virtual ~IConsumer() = default;
 
     virtual IDisplayConsumer* asDisplay() { return nullptr; }
 
     virtual void init() {}
 
-    struct AlertPattern {
-        uint32_t speedMs;
-        const TallyState (*patterns)[8];  // [variant][step], up to 8 steps
-        uint8_t variantCount;
-        uint8_t patternLen;
-    };
-
-    void setState(const TallyState state) {
+    void setState(const TallyState state, bool apply = true) {
         _state = state;
-        if (_alertTask) {
-            xTaskNotify(_alertTask, 2, eSetBits);
-            return;
+        if (apply) {
+            applyState(state);
         }
-        applyState(state);
     }
 
-    void setAlert(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
-        if (action == DeviceAlertAction::CLEAR) {
-            this->stopAlertTask();
-        } else {
-            this->startAlertTask(action, target, timeout);
-        }
-    }
+    // TODO: add zones with callback and imp here, or add setZone, or similar.
+    virtual void setAlertStep(DeviceAlertTarget target, const TallyState* step_variants, uint8_t variantCount) = 0;
+
 
     void setBrightness(uint8_t brightness) {
         _brightness = brightness;
@@ -48,105 +38,16 @@ public:
 protected:
     uint8_t    _brightness = 255;
     TallyState _state      = TallyState::NONE;
-    TaskHandle_t _alertTask = {};
+    ITallyColorMapper& _colorMapper;
 
     virtual void applyState(TallyState state) = 0;
 
     virtual void applyBrightness(uint8_t /*brightness*/) {}
 
-    static void stateToColor(TallyState state, uint8_t& r, uint8_t& g, uint8_t& b) {
-        switch (state) {
-            case TallyState::DANGER:
-            case TallyState::WARNING: r = 255; g = 255; b =   0; return;
-            case TallyState::INFO:    r =   0; g =   0; b = 255; return;
-            case TallyState::PREVIEW: r =   0; g = 255; b =   0; return;
-            case TallyState::PROGRAM: r = 255; g =   0; b =   0; return;
-            default:                  r =   0; g =   0; b =   0; return;
-        }
-    }
 
-    // Unified alert pattern table — shared by all consumers. Implemented in IConsumer.cpp.
-    static const AlertPattern* getAlertPattern(DeviceAlertAction action);
-
-    uint32_t getAlertStepLength(DeviceAlertAction action) {
-        const AlertPattern* p = getAlertPattern(action);
-        return p ? p->speedMs : 0;
-    }
-    uint8_t getAlertStepCount(DeviceAlertAction action) {
-        const AlertPattern* p = getAlertPattern(action);
-        return p ? p->patternLen : 1;
-    }
-
-    virtual void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) = 0;
-
-    struct AlertTaskArg {
-        IConsumer* self;
-        DeviceAlertAction action;
-        DeviceAlertTarget target;
-        uint32_t timeout;
-    };
-
-    static void alertTask(void* arg) {
-        auto* a = static_cast<AlertTaskArg*>(arg);
-        IConsumer* self = a->self;
-
-        const bool infinite_timeout = (a->timeout == 0);
-        TickType_t parsed_timeout = pdMS_TO_TICKS(a->timeout);
-        TickType_t start_time = xTaskGetTickCount();
-
-        uint8_t step = 0;
-
-        TickType_t step_ticks = pdMS_TO_TICKS(self->getAlertStepLength(a->action));
-        uint8_t step_count = self->getAlertStepCount(a->action);
-
-        bool stop = false;
-        while (!stop && (xTaskGetTickCount() < start_time + parsed_timeout || infinite_timeout)) {
-            self->setAlertStep(a->action, a->target, step);
-
-            TickType_t step_deadline = xTaskGetTickCount() + step_ticks;
-            if (!infinite_timeout && step_deadline > start_time + parsed_timeout)
-                step_deadline = start_time + parsed_timeout;
-
-            while (xTaskGetTickCount() < step_deadline) {
-                uint32_t notif = 0;
-                xTaskNotifyWait(0, ULONG_MAX, &notif, step_deadline - xTaskGetTickCount());
-                if (notif & 1) { stop = true; break; }
-                if (notif & 2) self->setAlertStep(a->action, a->target, step);
-            }
-
-            step = (step + 1) % step_count;
-        }
-
-        bool replaced = (self->_alertTask != nullptr) && (self->_alertTask != xTaskGetCurrentTaskHandle());
-        if (!replaced) {
-            self->_alertTask = nullptr;
-            self->applyState(self->_state);
-        }
-        delete a;
-        vTaskDelete(nullptr);
-    }
-
-    void startAlertTask(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout) {
-        if (_alertTask) {
-            TaskHandle_t h = _alertTask;
-            _alertTask = nullptr;
-            xTaskNotify(h, 1, eSetBits);
-            applyState(_state);
-        }
-
-        auto* arg    = new AlertTaskArg;
-        arg->self    = this;
-        arg->action  = action;
-        arg->target  = target;
-        arg->timeout = timeout;
-
-        xTaskCreate(alertTask, "led_pat", 4096, arg, 18, &_alertTask);
-    }
-
-    void stopAlertTask() {
-        if (!_alertTask) return;
-        TaskHandle_t h = _alertTask;
-        _alertTask = nullptr;
-        xTaskNotify(h, 1, eSetBits);
+    bool doesTargetMatch(DeviceAlertTarget consumerTarget, DeviceAlertTarget alertTarget) const {
+        return consumerTarget == DeviceAlertTarget::ALL
+            || alertTarget == DeviceAlertTarget::ALL
+            || consumerTarget == alertTarget;
     }
 };
