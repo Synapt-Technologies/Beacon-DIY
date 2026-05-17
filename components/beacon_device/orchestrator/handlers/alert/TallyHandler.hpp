@@ -1,11 +1,16 @@
 #pragma once
 
 #include "types/AlertTypes.hpp"
+#include "orchestrator/handlers/alert/colorPatternMap/IColorAlertPatternMap.hpp"
+#include "esp_log.h"
+#include "consumer/IConsumer.hpp"
 
 
 class TallyHandler {
 public:
     static constexpr uint8_t MAX_CONSUMERS = 8;
+
+    TallyHandler(IColorAlertPatternMap& alertPatternMap) : _alertPatternMap(alertPatternMap) {};
 
     ~TallyHandler() = default;
 
@@ -42,12 +47,15 @@ public:
 
 
 protected:
-    IConsumer* _consumers[MAX_CONSUMERS]    = {};
-    uint8_t    _consumerCount               = 0;
 
+    IColorAlertPatternMap& _alertPatternMap;
 
-    TallyState      _state      = TallyState::NONE;
-    TaskHandle_t    _alertTask  = {};
+    TallyState      _state                      = TallyState::NONE;
+    TaskHandle_t    _alertTask                  = {};
+
+    IConsumer*      _consumers[MAX_CONSUMERS]   = {};
+    uint8_t         _consumerCount              = 0;
+
 
     void applyState(TallyState state, bool apply = true) {
         
@@ -55,15 +63,14 @@ protected:
             _consumers[i]->setState(state, apply);
     };
 
-    static const ColorAlertPattern* getAlertPattern(DeviceAlertAction action);
-
-    static uint32_t getAlertStepLength(DeviceAlertAction action) {
-        const ColorAlertPattern* p = getAlertPattern(action);
-        return p ? p->speedMs : 400;
+    const ColorAlertPattern* getAlertPattern(DeviceAlertAction action) const {
+        return _alertPatternMap.getPattern(action);
     }
-    static uint8_t getAlertStepCount(DeviceAlertAction action) {
-        const ColorAlertPattern* p = getAlertPattern(action);
-        return p ? p->patternLen : 1;
+    uint32_t getAlertStepLength(DeviceAlertAction action) const {
+        return _alertPatternMap.getAlertStepLength(action);
+    }
+    uint8_t getAlertStepCount(DeviceAlertAction action) const {
+        return _alertPatternMap.getAlertStepCount(action);
     }
 
     void setAlertStep(DeviceAlertAction action, DeviceAlertTarget target, uint8_t step) {
