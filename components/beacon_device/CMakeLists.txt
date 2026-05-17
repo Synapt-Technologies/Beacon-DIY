@@ -31,6 +31,7 @@ idf_component_register(
         "networkConnection/StaWifiConnection.cpp"
         "orchestrator/IOrchestrator.cpp"
         "orchestrator/SateliteOrchestrator.cpp"
+        "orchestrator/handlers/colorPatternMap/DefaultColorAlertPatternMap.cpp"
         "beaconConnection/IBeaconConnection.hpp"
         "beaconConnection/TcpMqttBeaconConnection.hpp"
         "config/Config.hpp"
