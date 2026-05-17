@@ -1,5 +1,6 @@
 #pragma once
 
+// TODO: Rename to default, add fixed version that allows color setting in the constructor, and a version that uses the config.
 class FixedTallyColorMapper : public ITallyColorMapper {
 public:
     RGBColor stateToColor(TallyState state) override {
