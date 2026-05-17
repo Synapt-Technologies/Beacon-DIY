@@ -139,10 +139,7 @@ void SateliteOrchestrator::onRuntimeChanged(const Settings::Runtime& s)
 void SateliteOrchestrator::applyTally(TallyState state)
 {
     ESP_LOGI(TAG, "Applying tally state: %d", static_cast<int>(state));
-
-    for (int i = 0; i < _consumerCount; i++) {
-        _consumers[i]->setState(state);
-    }
+    _tallyHandler.setState(state);
 }
 
 void SateliteOrchestrator::applyAlert(DeviceAlertAction action,
@@ -156,9 +153,7 @@ void SateliteOrchestrator::applyAlert(DeviceAlertAction action,
         else if (target == DeviceAlertTarget::TALENT) target = DeviceAlertTarget::OPERATOR;
     }
 
-    for (int i = 0; i < _consumerCount; i++) {
-        _consumers[i]->setAlert(action, target, timeout);
-    }
+    _tallyHandler.setColorAlert(action, target, timeout);
 }
 
 

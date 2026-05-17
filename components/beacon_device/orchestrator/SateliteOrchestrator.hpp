@@ -4,14 +4,15 @@
 
 class SateliteOrchestrator : public IOrchestrator {
 public:
-    SateliteOrchestrator(ISettingsStore&      store,
-                         const DeviceProfile& profile,
-                         INetworkConnection&  network,
-                         IBeaconConnection&   beacon,
-                         IConsumer**          consumers,
-                         uint8_t              consumerCount,
-                         EspHttpServer&       http)
-        : IOrchestrator(store, profile, network, beacon, consumers, consumerCount, http)
+    SateliteOrchestrator(
+                            ISettingsStore&      store,
+                            const DeviceProfile& profile,
+                            INetworkConnection&  network,
+                            IBeaconConnection&   beacon,
+                            TallyHandler&        tallyHandler,
+                            EspHttpServer&       http
+                        )
+        : IOrchestrator(store, profile, network, beacon, tallyHandler, http)
     {}
 
     void stop() override;
@@ -20,7 +21,6 @@ protected:
     void doStart() override;
 
 private:
-    static constexpr char TAG[] = "SateliteOrch";
 
     BeaconStatus _beaconStatus = BeaconStatus::DISCONNECTED; // TODO Add UI and check if it needs to be stored here at all.
 
@@ -34,7 +34,6 @@ private:
 
     void applyTally(TallyState state);
     void applyAlert(DeviceAlertAction action, DeviceAlertTarget target, uint32_t timeout);
-    void applyDisplay(const Settings::Display& s);
 
     void registerHttpHandlers();
 };
