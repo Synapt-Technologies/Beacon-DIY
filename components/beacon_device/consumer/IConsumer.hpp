@@ -39,6 +39,7 @@ protected:
     uint8_t    _brightness = 255;
     TallyState _state      = TallyState::NONE;
     ITallyColorMapper& _colorMapper;
+    // TODO: Wrapper functions around colormapper?
 
     virtual void applyState(TallyState state) = 0;
 
