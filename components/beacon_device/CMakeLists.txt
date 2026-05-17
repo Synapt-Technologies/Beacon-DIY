@@ -52,6 +52,8 @@ idf_component_register(
         "networkConnection/IEthernetConnection.hpp"
         "networkConnection/IWifiConnection.hpp"
         "networkConnection/StaWifiConnection.hpp"
+        "mapper/ITallyColorMapper.hpp"
+        "mapper/FixedTallyColorMapper.hpp"
         "orchestrator/IOrchestrator.hpp"
         "orchestrator/NodeOrchestrator.hpp"
         "orchestrator/SateliteOrchestrator.hpp"
