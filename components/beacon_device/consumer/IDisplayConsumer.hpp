@@ -4,6 +4,7 @@
 #include "freertos/timers.h"
 #include <cstring>
 
+//TODO Move text to TextHandler
 class IDisplayConsumer : public IConsumer {
 public:
     static constexpr uint8_t TEXT_COUNT = 8;
