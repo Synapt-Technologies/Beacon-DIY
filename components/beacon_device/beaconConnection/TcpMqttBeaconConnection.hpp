@@ -231,9 +231,10 @@ private:
                 }
             }
             if      (strcmp(state, "PROGRAM") == 0) ss = TallyState::PROGRAM;
-            else if (strcmp(state, "DANGER")  == 0) ss = TallyState::DANGER;
             else if (strcmp(state, "PREVIEW") == 0) ss = TallyState::PREVIEW;
             else if (strcmp(state, "WARNING") == 0) ss = TallyState::WARNING;
+            else if (strcmp(state, "INFO")    == 0) ss = TallyState::INFO;
+            else if (strcmp(state, "DANGER")  == 0) ss = TallyState::DANGER;
         }
 
         ESP_LOGI(TAG, "Tally ss=%d", static_cast<int>(ss));
@@ -257,6 +258,7 @@ private:
             time >= 0 ? static_cast<uint32_t>(time) : 0
         );
     }
+
 
     void onRuntimeConfig(const char* data, int len) {
         if (!_runtimeConfigCb)
@@ -292,6 +294,13 @@ private:
 
         if (shortName[0]) std::strncpy(config.name[0].shortName, shortName, sizeof(config.name[0].shortName) - 1);
         if (longName[0])  std::strncpy(config.name[0].longName,  longName,  sizeof(config.name[0].longName) - 1);
+
+
+        int stateOnDisconnect = extractInt(data, len, "state_on_disconnect", -1);
+        if (stateOnDisconnect >= 0)
+            config.state_on_disconnect = static_cast<TallyState>(stateOnDisconnect);
+
+        // TODO flip_sides
 
         _runtimeConfigCb(config);
     }
